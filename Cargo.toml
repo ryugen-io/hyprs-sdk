@@ -1,0 +1,17 @@
+[package]
+name = "hypr-sdk"
+version = "0.1.0"
+edition = "2024"
+description = "Comprehensive Rust SDK for the Hyprland compositor"
+license = "MIT"
+repository = "https://github.com/ryugen-io/hypr-sdk"
+
+[dependencies]
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["net", "io-util", "rt", "macros"] }
+
+[features]
+default = []
+blocking = []
