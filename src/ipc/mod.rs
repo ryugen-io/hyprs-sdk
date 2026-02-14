@@ -3,3 +3,4 @@
 //! Covers Socket1 (request/response) and Socket2 (event stream).
 
 pub mod instance;
+pub mod socket;
