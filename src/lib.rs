@@ -1,1 +1,5 @@
-// placeholder
+#![forbid(unsafe_code)]
+
+pub mod error;
+
+pub use error::{HyprError, HyprResult};
