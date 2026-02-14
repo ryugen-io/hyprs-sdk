@@ -1,5 +1,5 @@
+use hypr_sdk::types::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
 use hypr_sdk::types::workspace::Workspace;
-use hypr_sdk::types::common::{MonitorId, WindowAddress, WorkspaceId};
 
 const SAMPLE_JSON: &str = r#"{
     "id": 1,
@@ -69,4 +69,16 @@ fn workspace_ignores_unknown_fields() {
     }"#;
     let ws: Workspace = serde_json::from_str(json).unwrap();
     assert_eq!(ws.id, WorkspaceId(1));
+}
+
+#[test]
+fn ipc_json_defaults_plugin_fields() {
+    // IPC JSON doesn't include plugin-only fields; they should default.
+    let ws: Workspace = serde_json::from_str(SAMPLE_JSON).unwrap();
+    assert_eq!(ws.fullscreen_mode, FullscreenMode::None);
+    assert!(!ws.is_special);
+    assert!(!ws.default_floating);
+    assert!(!ws.default_pseudo);
+    assert!(!ws.visible);
+    assert_eq!(ws.last_monitor, "");
 }

@@ -1,15 +1,21 @@
 //! Workspace type — virtual desktop representation.
 //!
+//! Models `CWorkspace` from `src/desktop/Workspace.hpp`.
 //! Deserialization target for the `workspaces` and `activeworkspace` IPC queries.
 
 use serde::Deserialize;
 
-use super::common::{MonitorId, WindowAddress, WorkspaceId};
+use super::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
 
-/// A Hyprland workspace, as returned by the `workspaces` IPC query.
+/// A Hyprland workspace.
+///
+/// Combines fields from IPC JSON responses and the internal `CWorkspace` struct.
+/// Fields only available via the plugin API are `#[serde(default)]`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Workspace {
-    /// Workspace ID. Negative values indicate special workspaces.
+    // -- IPC JSON fields (from HyprCtl getWorkspaceData) ---------------------
+
+    /// Workspace ID. Positive = regular, negative = special/name-based.
     pub id: WorkspaceId,
 
     /// Workspace name.
@@ -40,4 +46,30 @@ pub struct Workspace {
     /// Whether this workspace is persistent (survives having no windows).
     #[serde(rename = "ispersistent")]
     pub is_persistent: bool,
+
+    // -- Fields from CWorkspace (plugin API) ---------------------------------
+
+    /// Current fullscreen mode of the workspace.
+    #[serde(default)]
+    pub fullscreen_mode: FullscreenMode,
+
+    /// Whether this is a special (scratchpad) workspace.
+    #[serde(default)]
+    pub is_special: bool,
+
+    /// Whether new windows on this workspace default to floating.
+    #[serde(default)]
+    pub default_floating: bool,
+
+    /// Whether new windows on this workspace default to pseudo-tiled.
+    #[serde(default)]
+    pub default_pseudo: bool,
+
+    /// Whether the workspace is currently visible on its monitor.
+    #[serde(default)]
+    pub visible: bool,
+
+    /// Last monitor name (used for reconnection).
+    #[serde(default)]
+    pub last_monitor: String,
 }
