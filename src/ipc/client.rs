@@ -4,6 +4,7 @@
 
 use std::path::PathBuf;
 
+use crate::dispatch::DispatchCmd;
 use crate::error::{HyprError, HyprResult};
 use crate::ipc::commands::{self, Flags};
 use crate::ipc::instance::Instance;
@@ -83,9 +84,14 @@ impl HyprlandClient {
         }
     }
 
-    /// Dispatch a compositor action.
+    /// Dispatch a compositor action by name and args.
     pub async fn dispatch(&self, dispatcher: &str, args: &str) -> HyprResult<()> {
         self.action(&commands::dispatch(dispatcher, args)).await
+    }
+
+    /// Dispatch a typed command from the [`dispatch`](crate::dispatch) module.
+    pub async fn dispatch_cmd(&self, cmd: DispatchCmd) -> HyprResult<()> {
+        self.dispatch(cmd.name, &cmd.args).await
     }
 
     /// Set a configuration keyword at runtime.
