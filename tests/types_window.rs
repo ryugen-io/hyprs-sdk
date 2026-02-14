@@ -43,7 +43,13 @@ fn deserialize_window() {
     assert!(!w.hidden);
     assert_eq!(w.position, [100, 200]);
     assert_eq!(w.size, [1920, 1080]);
-    assert_eq!(w.workspace, WorkspaceRef { id: WorkspaceId(1), name: "1".into() });
+    assert_eq!(
+        w.workspace,
+        WorkspaceRef {
+            id: WorkspaceId(1),
+            name: "1".into()
+        }
+    );
     assert!(!w.floating);
     assert!(!w.pseudo);
     assert_eq!(w.monitor, 0);

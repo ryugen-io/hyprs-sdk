@@ -14,7 +14,6 @@ use super::common::{MonitorId, WindowAddress, WorkspaceRef};
 #[derive(Debug, Clone, Deserialize)]
 pub struct Monitor {
     // -- Identity ------------------------------------------------------------
-
     /// Numeric monitor ID.
     pub id: MonitorId,
 
@@ -34,7 +33,6 @@ pub struct Monitor {
     pub serial: String,
 
     // -- Resolution & physical size ------------------------------------------
-
     /// Pixel width.
     pub width: i32,
 
@@ -54,7 +52,6 @@ pub struct Monitor {
     pub refresh_rate: f64,
 
     // -- Position ------------------------------------------------------------
-
     /// X position on the virtual desktop.
     pub x: i32,
 
@@ -62,7 +59,6 @@ pub struct Monitor {
     pub y: i32,
 
     // -- Workspaces ----------------------------------------------------------
-
     /// Currently active workspace on this monitor.
     #[serde(rename = "activeWorkspace")]
     pub active_workspace: WorkspaceRef,
@@ -72,7 +68,6 @@ pub struct Monitor {
     pub special_workspace: WorkspaceRef,
 
     // -- Display settings ----------------------------------------------------
-
     /// Reserved pixel areas `[left, top, right, bottom]` (e.g. for bars).
     pub reserved: [i32; 4],
 
@@ -83,7 +78,6 @@ pub struct Monitor {
     pub transform: i32,
 
     // -- State flags ---------------------------------------------------------
-
     /// Whether this monitor is currently focused.
     pub focused: bool,
 
@@ -98,7 +92,6 @@ pub struct Monitor {
     pub disabled: bool,
 
     // -- Solitary client -----------------------------------------------------
-
     /// Address of the solitary (only visible) client, or `0x0`.
     pub solitary: WindowAddress,
 
@@ -107,7 +100,6 @@ pub struct Monitor {
     pub solitary_blocked_by: u32,
 
     // -- Tearing -------------------------------------------------------------
-
     /// Whether frame tearing is actively occurring.
     #[serde(rename = "activelyTearing")]
     pub actively_tearing: bool,
@@ -117,7 +109,6 @@ pub struct Monitor {
     pub tearing_blocked_by: u8,
 
     // -- Direct scanout ------------------------------------------------------
-
     /// Address of the direct-scanout client, or `0x0`.
     #[serde(rename = "directScanoutTo")]
     pub direct_scanout_to: WindowAddress,
@@ -127,7 +118,6 @@ pub struct Monitor {
     pub direct_scanout_blocked_by: u16,
 
     // -- Format & mirroring --------------------------------------------------
-
     /// Current DRM pixel format (e.g. "DRM_FORMAT_XRGB8888").
     #[serde(rename = "currentFormat")]
     pub current_format: String,
@@ -141,7 +131,6 @@ pub struct Monitor {
     pub available_modes: Vec<String>,
 
     // -- Color management ----------------------------------------------------
-
     /// Color management preset name (e.g. "sRGB").
     #[serde(rename = "colorManagementPreset")]
     pub color_management_preset: String,
@@ -163,7 +152,6 @@ pub struct Monitor {
     pub sdr_max_luminance: i32,
 
     // -- Fields from CMonitor (plugin API) -----------------------------------
-
     /// Whether 10-bit color is enabled.
     #[serde(default)]
     pub enabled_10bit: bool,

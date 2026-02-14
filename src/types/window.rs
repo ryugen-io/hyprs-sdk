@@ -14,7 +14,6 @@ use super::common::{ContentType, FullscreenMode, WindowAddress, WorkspaceRef};
 #[derive(Debug, Clone, Deserialize)]
 pub struct Window {
     // -- Identity ------------------------------------------------------------
-
     /// Unique address of this window (hex pointer).
     pub address: WindowAddress,
 
@@ -36,7 +35,6 @@ pub struct Window {
     pub initial_title: String,
 
     // -- Geometry ------------------------------------------------------------
-
     /// Position `[x, y]` on the virtual desktop.
     #[serde(rename = "at")]
     pub position: [i32; 2],
@@ -45,7 +43,6 @@ pub struct Window {
     pub size: [i32; 2],
 
     // -- Workspace & monitor -------------------------------------------------
-
     /// Workspace this window belongs to.
     pub workspace: WorkspaceRef,
 
@@ -53,7 +50,6 @@ pub struct Window {
     pub monitor: i32,
 
     // -- State flags ---------------------------------------------------------
-
     /// Whether the window is mapped (visible to the compositor).
     pub mapped: bool,
 
@@ -73,7 +69,6 @@ pub struct Window {
     pub xwayland: bool,
 
     // -- Fullscreen ----------------------------------------------------------
-
     /// Internal fullscreen mode (set by compositor/user).
     pub fullscreen: FullscreenMode,
 
@@ -86,7 +81,6 @@ pub struct Window {
     pub over_fullscreen: bool,
 
     // -- Groups & tags -------------------------------------------------------
-
     /// Addresses of windows in the same group (empty = not grouped).
     pub grouped: Vec<WindowAddress>,
 
@@ -94,7 +88,6 @@ pub struct Window {
     pub tags: Vec<String>,
 
     // -- Swallowing & focus --------------------------------------------------
-
     /// Address of the window being swallowed (`0x0` if none).
     pub swallowing: WindowAddress,
 
@@ -107,7 +100,6 @@ pub struct Window {
     pub inhibiting_idle: bool,
 
     // -- XDG metadata --------------------------------------------------------
-
     /// XDG application tag.
     #[serde(rename = "xdgTag")]
     pub xdg_tag: String,
@@ -121,7 +113,6 @@ pub struct Window {
     pub content_type: ContentType,
 
     // -- Fields from CWindow (plugin API) ------------------------------------
-
     /// Urgency hint is set.
     #[serde(default)]
     pub is_urgent: bool,

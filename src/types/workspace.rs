@@ -14,7 +14,6 @@ use super::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
 #[derive(Debug, Clone, Deserialize)]
 pub struct Workspace {
     // -- IPC JSON fields (from HyprCtl getWorkspaceData) ---------------------
-
     /// Workspace ID. Positive = regular, negative = special/name-based.
     pub id: WorkspaceId,
 
@@ -48,7 +47,6 @@ pub struct Workspace {
     pub is_persistent: bool,
 
     // -- Fields from CWorkspace (plugin API) ---------------------------------
-
     /// Current fullscreen mode of the workspace.
     #[serde(default)]
     pub fullscreen_mode: FullscreenMode,

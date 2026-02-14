@@ -15,7 +15,6 @@ use super::common::WindowAddress;
 #[derive(Debug, Clone, Deserialize)]
 pub struct LayerSurface {
     // -- IPC JSON fields -----------------------------------------------------
-
     /// Unique address of this layer surface.
     pub address: WindowAddress,
 
@@ -38,7 +37,6 @@ pub struct LayerSurface {
     pub pid: i32,
 
     // -- Fields from CLayerSurface (plugin API) ------------------------------
-
     /// Layer level (0=background, 1=bottom, 2=top, 3=overlay).
     #[serde(default)]
     pub layer: u32,

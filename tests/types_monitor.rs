@@ -57,8 +57,20 @@ fn deserialize_monitor() {
     assert!((m.refresh_rate - 144.0).abs() < 0.01);
     assert_eq!(m.x, 0);
     assert_eq!(m.y, 0);
-    assert_eq!(m.active_workspace, WorkspaceRef { id: WorkspaceId(1), name: "1".into() });
-    assert_eq!(m.special_workspace, WorkspaceRef { id: WorkspaceId(0), name: "".into() });
+    assert_eq!(
+        m.active_workspace,
+        WorkspaceRef {
+            id: WorkspaceId(1),
+            name: "1".into()
+        }
+    );
+    assert_eq!(
+        m.special_workspace,
+        WorkspaceRef {
+            id: WorkspaceId(0),
+            name: "".into()
+        }
+    );
     assert_eq!(m.reserved, [0, 40, 0, 0]);
     assert!((m.scale - 1.0).abs() < 0.01);
     assert_eq!(m.transform, 0);
@@ -74,7 +86,10 @@ fn deserialize_monitor() {
     assert!(!m.disabled);
     assert_eq!(m.current_format, "DRM_FORMAT_XRGB8888");
     assert_eq!(m.mirror_of, "none");
-    assert_eq!(m.available_modes, vec!["2560x1440@144.00Hz", "1920x1080@60.00Hz"]);
+    assert_eq!(
+        m.available_modes,
+        vec!["2560x1440@144.00Hz", "1920x1080@60.00Hz"]
+    );
     assert_eq!(m.color_management_preset, "sRGB");
     assert!((m.sdr_brightness - 1.0).abs() < 0.01);
     assert!((m.sdr_saturation - 1.0).abs() < 0.01);
