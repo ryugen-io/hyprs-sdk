@@ -26,6 +26,8 @@ pub mod output_management;
 #[cfg(feature = "wayland")]
 pub mod output_power;
 #[cfg(feature = "wayland")]
+pub mod pointer_warp;
+#[cfg(feature = "wayland")]
 pub mod screencopy;
 #[cfg(feature = "wayland")]
 pub mod session_lock;
