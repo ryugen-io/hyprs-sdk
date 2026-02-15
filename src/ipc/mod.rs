@@ -8,6 +8,12 @@ pub mod events;
 pub mod instance;
 pub mod socket;
 
+#[cfg(feature = "blocking")]
+pub mod blocking;
+
 pub use client::HyprlandClient;
 pub use commands::Flags;
 pub use events::{Event, EventStream};
+
+#[cfg(feature = "blocking")]
+pub use blocking::BlockingClient;
