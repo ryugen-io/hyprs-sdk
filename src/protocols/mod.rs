@@ -20,4 +20,6 @@ pub mod output_power;
 #[cfg(feature = "wayland")]
 pub mod screencopy;
 #[cfg(feature = "wayland")]
+pub mod virtual_keyboard;
+#[cfg(feature = "wayland")]
 pub mod virtual_pointer;
