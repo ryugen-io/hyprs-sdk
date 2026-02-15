@@ -26,6 +26,8 @@ pub mod screencopy;
 #[cfg(feature = "wayland")]
 pub mod session_lock;
 #[cfg(feature = "wayland")]
+pub mod toplevel_export;
+#[cfg(feature = "wayland")]
 pub mod virtual_keyboard;
 #[cfg(feature = "wayland")]
 pub mod virtual_pointer;
