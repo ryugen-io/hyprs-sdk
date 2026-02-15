@@ -7,3 +7,5 @@
 pub mod connection;
 #[cfg(feature = "wayland")]
 pub mod gamma_control;
+#[cfg(feature = "wayland")]
+pub mod output_power;
