@@ -6,6 +6,8 @@
 #[cfg(feature = "wayland")]
 pub mod connection;
 #[cfg(feature = "wayland")]
+pub mod foreign_toplevel;
+#[cfg(feature = "wayland")]
 pub mod gamma_control;
 #[cfg(feature = "wayland")]
 pub mod layer_shell;
