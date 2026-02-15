@@ -137,13 +137,23 @@ impl CssGapData {
     /// Uniform gap on all sides.
     #[must_use]
     pub fn uniform(value: i64) -> Self {
-        Self { top: value, right: value, bottom: value, left: value }
+        Self {
+            top: value,
+            right: value,
+            bottom: value,
+            left: value,
+        }
     }
 
     /// Vertical and horizontal gaps.
     #[must_use]
     pub fn symmetric(vertical: i64, horizontal: i64) -> Self {
-        Self { top: vertical, right: horizontal, bottom: vertical, left: horizontal }
+        Self {
+            top: vertical,
+            right: horizontal,
+            bottom: vertical,
+            left: horizontal,
+        }
     }
 }
 

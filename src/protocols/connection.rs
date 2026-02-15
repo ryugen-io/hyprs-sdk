@@ -76,8 +76,8 @@ impl WaylandConnection {
     /// Returns [`HyprError::WaylandConnect`] if the display cannot be reached,
     /// or [`HyprError::WaylandDispatch`] if the initial roundtrip fails.
     pub fn connect() -> HyprResult<Self> {
-        let conn = Connection::connect_to_env()
-            .map_err(|e| HyprError::WaylandConnect(e.to_string()))?;
+        let conn =
+            Connection::connect_to_env().map_err(|e| HyprError::WaylandConnect(e.to_string()))?;
         Self::from_connection(conn)
     }
 

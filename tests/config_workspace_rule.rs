@@ -37,7 +37,8 @@ fn workspace_rule_with_options() {
         no_rounding: Some(false),
         ..Default::default()
     };
-    rule.layout_opts.insert("orientation".to_string(), "left".to_string());
+    rule.layout_opts
+        .insert("orientation".to_string(), "left".to_string());
     assert_eq!(rule.layout_opts["orientation"], "left");
     assert!(rule.is_persistent);
 }

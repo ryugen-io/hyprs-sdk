@@ -3,8 +3,14 @@ use hypr_sdk::config::*;
 #[test]
 fn config_option_type_from_raw() {
     assert_eq!(ConfigOptionType::from_raw(0), Some(ConfigOptionType::Bool));
-    assert_eq!(ConfigOptionType::from_raw(4), Some(ConfigOptionType::StringLong));
-    assert_eq!(ConfigOptionType::from_raw(8), Some(ConfigOptionType::Vector));
+    assert_eq!(
+        ConfigOptionType::from_raw(4),
+        Some(ConfigOptionType::StringLong)
+    );
+    assert_eq!(
+        ConfigOptionType::from_raw(8),
+        Some(ConfigOptionType::Vector)
+    );
     assert_eq!(ConfigOptionType::from_raw(99), None);
 }
 
@@ -37,7 +43,12 @@ fn css_gap_symmetric() {
 
 #[test]
 fn css_gap_serde_roundtrip() {
-    let gap = CssGapData { top: 1, right: 2, bottom: 3, left: 4 };
+    let gap = CssGapData {
+        top: 1,
+        right: 2,
+        bottom: 3,
+        left: 4,
+    };
     let json = serde_json::to_string(&gap).unwrap();
     let parsed: CssGapData = serde_json::from_str(&json).unwrap();
     assert_eq!(gap, parsed);
@@ -48,8 +59,19 @@ fn config_option_data_variants() {
     let bool_data = ConfigOptionData::Bool { value: true };
     assert!(matches!(bool_data, ConfigOptionData::Bool { value: true }));
 
-    let range_data = ConfigOptionData::Range { value: 5, min: 0, max: 10 };
-    assert!(matches!(range_data, ConfigOptionData::Range { value: 5, min: 0, max: 10 }));
+    let range_data = ConfigOptionData::Range {
+        value: 5,
+        min: 0,
+        max: 10,
+    };
+    assert!(matches!(
+        range_data,
+        ConfigOptionData::Range {
+            value: 5,
+            min: 0,
+            max: 10
+        }
+    ));
 
     let choice_data = ConfigOptionData::Choice {
         first_index: 0,
