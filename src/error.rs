@@ -24,6 +24,21 @@ pub enum HyprError {
     /// Instance with given signature not found.
     #[error("instance not found: {0}")]
     InstanceNotFound(String),
+
+    /// Wayland connection failed.
+    #[cfg(feature = "wayland")]
+    #[error("wayland connect error: {0}")]
+    WaylandConnect(String),
+
+    /// Wayland event dispatch error.
+    #[cfg(feature = "wayland")]
+    #[error("wayland dispatch error: {0}")]
+    WaylandDispatch(String),
+
+    /// The compositor does not advertise a required protocol global.
+    #[cfg(feature = "wayland")]
+    #[error("protocol not supported: {0}")]
+    ProtocolNotSupported(String),
 }
 
 /// Convenience result type for hypr-sdk.
