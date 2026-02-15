@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
 /// Target Hyprland version this SDK was verified against.
