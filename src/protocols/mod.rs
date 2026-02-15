@@ -8,6 +8,8 @@ pub mod connection;
 #[cfg(feature = "wayland")]
 pub mod gamma_control;
 #[cfg(feature = "wayland")]
+pub mod layer_shell;
+#[cfg(feature = "wayland")]
 pub mod output_management;
 #[cfg(feature = "wayland")]
 pub mod output_power;
