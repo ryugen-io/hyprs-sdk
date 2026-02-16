@@ -17,7 +17,22 @@ wayland-protocols-wlr = { version = "0.3", features = ["client"], optional = tru
 wayland-protocols-misc = { version = "0.3", features = ["client"], optional = true }
 wayland-protocols-hyprland = { version = "1.2", features = ["client"], optional = true }
 
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
 [features]
 default = []
 blocking = []
 wayland = ["wayland-client", "wayland-protocols", "wayland-protocols-wlr", "wayland-protocols-misc", "wayland-protocols-hyprland"]
+
+[[bench]]
+name = "event_parsing"
+harness = false
+
+[[bench]]
+name = "json_deser"
+harness = false
+
+[[bench]]
+name = "command_building"
+harness = false
