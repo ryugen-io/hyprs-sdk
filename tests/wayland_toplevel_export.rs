@@ -14,6 +14,6 @@ fn frame_format_buffer_size() {
 
 #[test]
 fn frame_flags() {
-    assert!(ToplevelFrameFlags::empty().is_empty());
+    assert!(ToplevelFrameFlags::default().is_empty());
     assert!(ToplevelFrameFlags::Y_INVERT.contains(ToplevelFrameFlags::Y_INVERT));
 }

@@ -14,8 +14,10 @@ tokio = { version = "1", features = ["net", "io-util", "rt", "rt-multi-thread", 
 wayland-client = { version = "0.31", optional = true }
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"], optional = true }
 wayland-protocols-wlr = { version = "0.3", features = ["client"], optional = true }
+wayland-protocols-misc = { version = "0.3", features = ["client"], optional = true }
+wayland-protocols-hyprland = { version = "1.2", features = ["client"], optional = true }
 
 [features]
 default = []
 blocking = []
-wayland = ["wayland-client", "wayland-protocols", "wayland-protocols-wlr"]
+wayland = ["wayland-client", "wayland-protocols", "wayland-protocols-wlr", "wayland-protocols-misc", "wayland-protocols-hyprland"]
