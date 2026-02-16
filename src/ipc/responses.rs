@@ -389,3 +389,45 @@ pub struct DecorationInfo {
     /// Rendering priority.
     pub priority: i32,
 }
+
+// ── descriptions ────────────────────────────────────────────────────
+
+/// A config option description from the `descriptions` command.
+///
+/// The `data` field is polymorphic — its shape depends on `option_type`.
+/// Use [`serde_json::Value`] accessors to extract type-specific fields
+/// like `"min"`, `"max"`, `"value"`, `"current"`, `"explicit"`, etc.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ConfigDescription {
+    /// Config key (e.g., "general:gaps_in").
+    pub value: String,
+    /// Human-readable description.
+    pub description: String,
+    /// Config option type (0=bool, 1=int, 2=float, 3=string_short,
+    /// 4=string_long, 5=color, 6=choice, 7=gradient, 8=vector).
+    #[serde(rename = "type")]
+    pub option_type: u16,
+    /// Option flags bitmask (1=percentage).
+    pub flags: u32,
+    /// Type-specific data (varies by `option_type`).
+    pub data: serde_json::Value,
+}
+
+// ── plugin list ─────────────────────────────────────────────────────
+
+/// A loaded plugin from the `plugin list` command.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct PluginInfo {
+    /// Plugin name.
+    pub name: String,
+    /// Plugin author.
+    pub author: String,
+    /// Plugin handle (hex address).
+    pub handle: String,
+    /// Plugin version string.
+    pub version: String,
+    /// Plugin description.
+    pub description: String,
+}

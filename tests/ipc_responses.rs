@@ -239,3 +239,98 @@ fn tablet_with_parent_deserialize() {
     let parent = devs.tablets[0].belongs_to.as_ref().unwrap();
     assert_eq!(parent.name, "Wacom");
 }
+
+#[test]
+fn config_description_bool_type() {
+    let json = r#"[{
+        "value": "general:border_size",
+        "description": "Border size in pixels",
+        "type": 0,
+        "flags": 0,
+        "data": {
+            "value": true,
+            "current": 1,
+            "explicit": true
+        }
+    }]"#;
+    let descs: Vec<ConfigDescription> = serde_json::from_str(json).unwrap();
+    assert_eq!(descs.len(), 1);
+    assert_eq!(descs[0].value, "general:border_size");
+    assert_eq!(descs[0].option_type, 0);
+    assert!(descs[0].data["explicit"].as_bool().unwrap());
+}
+
+#[test]
+fn config_description_range_type() {
+    let json = r#"[{
+        "value": "general:gaps_in",
+        "description": "Inner gaps",
+        "type": 1,
+        "flags": 0,
+        "data": {
+            "value": 5,
+            "min": 0,
+            "max": 100,
+            "current": 5,
+            "explicit": false
+        }
+    }]"#;
+    let descs: Vec<ConfigDescription> = serde_json::from_str(json).unwrap();
+    assert_eq!(descs[0].option_type, 1);
+    assert_eq!(descs[0].data["min"], 0);
+    assert_eq!(descs[0].data["max"], 100);
+}
+
+#[test]
+fn config_description_ignores_unknown_fields() {
+    let json = r#"[{"value": "test", "description": "d", "type": 0, "flags": 0, "data": {}, "future": true}]"#;
+    let descs: Vec<ConfigDescription> = serde_json::from_str(json).unwrap();
+    assert_eq!(descs[0].value, "test");
+}
+
+#[test]
+fn plugin_info_deserialize() {
+    let json = r#"[{
+        "name": "hyprexpo",
+        "author": "vaxerski",
+        "handle": "5603c0ab3000",
+        "version": "1.0.0",
+        "description": "Expo overview plugin"
+    }]"#;
+    let plugins: Vec<PluginInfo> = serde_json::from_str(json).unwrap();
+    assert_eq!(plugins.len(), 1);
+    assert_eq!(plugins[0].name, "hyprexpo");
+    assert_eq!(plugins[0].author, "vaxerski");
+    assert_eq!(plugins[0].handle, "5603c0ab3000");
+    assert_eq!(plugins[0].version, "1.0.0");
+}
+
+#[test]
+fn plugin_info_empty_list() {
+    let json = "[]";
+    let plugins: Vec<PluginInfo> = serde_json::from_str(json).unwrap();
+    assert!(plugins.is_empty());
+}
+
+#[test]
+fn plugin_info_ignores_unknown_fields() {
+    let json = r#"[{"name": "test", "author": "a", "handle": "0", "version": "1", "description": "d", "extra": 42}]"#;
+    let plugins: Vec<PluginInfo> = serde_json::from_str(json).unwrap();
+    assert_eq!(plugins[0].name, "test");
+}
+
+#[test]
+fn get_prop_value_minsize() {
+    let json = r#"{"minSize": [100, 200]}"#;
+    let val: serde_json::Value = serde_json::from_str(json).unwrap();
+    let arr = val["minSize"].as_array().unwrap();
+    assert_eq!(arr[0], 100);
+    assert_eq!(arr[1], 200);
+}
+
+#[test]
+fn get_prop_value_alpha() {
+    let json = r#"{"alpha": 0.85}"#;
+    let val: serde_json::Value = serde_json::from_str(json).unwrap();
+    assert!((val["alpha"].as_f64().unwrap() - 0.85).abs() < f64::EPSILON);
+}

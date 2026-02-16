@@ -348,6 +348,36 @@ impl HyprlandClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
+    /// Query all config option descriptions (JSON-deserialized).
+    ///
+    /// Returns metadata for every config option including type, default
+    /// value, current value, and whether it was explicitly set.
+    pub async fn descriptions_typed(&self) -> HyprResult<Vec<responses::ConfigDescription>> {
+        let raw = self.request(&commands::descriptions(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query loaded plugins (JSON-deserialized).
+    pub async fn plugin_list_typed(&self) -> HyprResult<Vec<responses::PluginInfo>> {
+        let raw = self.request(&commands::plugin("list")).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query a window property as a JSON value.
+    ///
+    /// The shape of the returned value varies by property. Common
+    /// properties: `"minSize"`, `"maxSize"`, `"alpha"`, `"alphaOverride"`.
+    pub async fn get_prop_value(
+        &self,
+        window_address: &str,
+        property: &str,
+    ) -> HyprResult<serde_json::Value> {
+        let raw = self
+            .request(&commands::get_prop(window_address, property, Flags::json()))
+            .await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
     // -- Raw queries with flags -----------------------------------------------
 
     /// Query monitors with custom flags.

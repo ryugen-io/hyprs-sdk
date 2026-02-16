@@ -299,6 +299,28 @@ impl BlockingClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
+    /// Query all config option descriptions (JSON-deserialized).
+    pub fn descriptions_typed(&self) -> HyprResult<Vec<responses::ConfigDescription>> {
+        let raw = self.request(&commands::descriptions(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query loaded plugins (JSON-deserialized).
+    pub fn plugin_list_typed(&self) -> HyprResult<Vec<responses::PluginInfo>> {
+        let raw = self.request(&commands::plugin("list"))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query a window property as a JSON value.
+    pub fn get_prop_value(
+        &self,
+        window_address: &str,
+        property: &str,
+    ) -> HyprResult<serde_json::Value> {
+        let raw = self.request(&commands::get_prop(window_address, property, Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
     // -- Raw queries with flags -----------------------------------------------
 
     /// Query monitors with custom flags.
