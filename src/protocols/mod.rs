@@ -22,6 +22,8 @@ pub mod global_shortcuts;
 #[cfg(feature = "wayland")]
 pub mod idle;
 #[cfg(feature = "wayland")]
+pub mod idle_inhibit;
+#[cfg(feature = "wayland")]
 pub mod layer_shell;
 #[cfg(feature = "wayland")]
 pub mod output_management;
