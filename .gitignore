@@ -3,3 +3,4 @@
 .sources/ratatui/
 .sources/sysrat-rs.bak/
 .sources/tachyonfx/
+__pycache__/
