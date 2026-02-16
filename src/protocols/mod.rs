@@ -10,6 +10,8 @@ pub mod ctm_control;
 #[cfg(feature = "wayland")]
 pub mod data_control;
 #[cfg(feature = "wayland")]
+pub mod ext_foreign_toplevel_list;
+#[cfg(feature = "wayland")]
 pub mod ext_workspace;
 #[cfg(feature = "wayland")]
 pub mod focus_grab;
@@ -19,6 +21,8 @@ pub mod foreign_toplevel;
 pub mod gamma_control;
 #[cfg(feature = "wayland")]
 pub mod global_shortcuts;
+#[cfg(feature = "wayland")]
+pub mod hyprland_surface;
 #[cfg(feature = "wayland")]
 pub mod idle;
 #[cfg(feature = "wayland")]

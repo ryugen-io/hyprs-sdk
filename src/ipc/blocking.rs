@@ -9,6 +9,7 @@ use crate::dispatch::DispatchCmd;
 use crate::error::{HyprError, HyprResult};
 use crate::ipc::commands::{self, Flags};
 use crate::ipc::instance::Instance;
+use crate::ipc::responses;
 use crate::ipc::socket;
 use crate::types::layer::LayersResponse;
 use crate::types::monitor::Monitor;
@@ -220,6 +221,81 @@ impl BlockingClient {
     /// Query all layer surfaces (JSON-deserialized).
     pub fn layers_typed(&self) -> HyprResult<LayersResponse> {
         let raw = self.request(&commands::layers(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query Hyprland version information (JSON-deserialized).
+    pub fn version_typed(&self) -> HyprResult<responses::VersionInfo> {
+        let raw = self.request(&commands::version(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query all input devices (JSON-deserialized).
+    pub fn devices_typed(&self) -> HyprResult<responses::DevicesResponse> {
+        let raw = self.request(&commands::devices(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query all keybindings (JSON-deserialized).
+    pub fn binds_typed(&self) -> HyprResult<Vec<responses::Bind>> {
+        let raw = self.request(&commands::binds(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query cursor position (JSON-deserialized).
+    pub fn cursor_pos_typed(&self) -> HyprResult<responses::CursorPosition> {
+        let raw = self.request(&commands::cursor_pos(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query animation configurations (JSON-deserialized).
+    pub fn animations_typed(&self) -> HyprResult<responses::AnimationsResponse> {
+        let raw = self.request(&commands::animations(Flags::json()))?;
+        responses::AnimationsResponse::from_json(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query registered global shortcuts (JSON-deserialized).
+    pub fn global_shortcuts_typed(&self) -> HyprResult<Vec<responses::GlobalShortcutInfo>> {
+        let raw = self.request(&commands::global_shortcuts(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query workspace rules (JSON-deserialized).
+    pub fn workspace_rules_typed(&self) -> HyprResult<Vec<responses::WorkspaceRuleInfo>> {
+        let raw = self.request(&commands::workspace_rules(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query available layout names (JSON-deserialized).
+    pub fn layouts_typed(&self) -> HyprResult<Vec<String>> {
+        let raw = self.request(&commands::layouts(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query configuration errors (JSON-deserialized).
+    pub fn config_errors_typed(&self) -> HyprResult<Vec<String>> {
+        let raw = self.request(&commands::config_errors(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query session lock state (JSON-deserialized).
+    pub fn locked_typed(&self) -> HyprResult<responses::LockState> {
+        let raw = self.request(&commands::locked(Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query a configuration option value (JSON-deserialized).
+    pub fn get_option_typed(&self, name: &str) -> HyprResult<responses::OptionValue> {
+        let raw = self.request(&commands::get_option(name, Flags::json()))?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query window decorations (JSON-deserialized).
+    pub fn decorations_typed(
+        &self,
+        window_address: &str,
+    ) -> HyprResult<Vec<responses::DecorationInfo>> {
+        let raw = self.request(&commands::decorations(window_address, Flags::json()))?;
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 

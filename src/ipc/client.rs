@@ -8,6 +8,7 @@ use crate::dispatch::DispatchCmd;
 use crate::error::{HyprError, HyprResult};
 use crate::ipc::commands::{self, Flags};
 use crate::ipc::instance::Instance;
+use crate::ipc::responses;
 use crate::ipc::socket;
 use crate::types::layer::LayersResponse;
 use crate::types::monitor::Monitor;
@@ -259,6 +260,91 @@ impl HyprlandClient {
     /// Query all layer surfaces (JSON-deserialized).
     pub async fn layers_typed(&self) -> HyprResult<LayersResponse> {
         let raw = self.request(&commands::layers(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query Hyprland version information (JSON-deserialized).
+    pub async fn version_typed(&self) -> HyprResult<responses::VersionInfo> {
+        let raw = self.request(&commands::version(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query all input devices (JSON-deserialized).
+    pub async fn devices_typed(&self) -> HyprResult<responses::DevicesResponse> {
+        let raw = self.request(&commands::devices(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query all keybindings (JSON-deserialized).
+    pub async fn binds_typed(&self) -> HyprResult<Vec<responses::Bind>> {
+        let raw = self.request(&commands::binds(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query cursor position (JSON-deserialized).
+    pub async fn cursor_pos_typed(&self) -> HyprResult<responses::CursorPosition> {
+        let raw = self.request(&commands::cursor_pos(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query animation configurations (JSON-deserialized).
+    pub async fn animations_typed(&self) -> HyprResult<responses::AnimationsResponse> {
+        let raw = self.request(&commands::animations(Flags::json())).await?;
+        responses::AnimationsResponse::from_json(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query registered global shortcuts (JSON-deserialized).
+    pub async fn global_shortcuts_typed(&self) -> HyprResult<Vec<responses::GlobalShortcutInfo>> {
+        let raw = self
+            .request(&commands::global_shortcuts(Flags::json()))
+            .await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query workspace rules (JSON-deserialized).
+    pub async fn workspace_rules_typed(&self) -> HyprResult<Vec<responses::WorkspaceRuleInfo>> {
+        let raw = self
+            .request(&commands::workspace_rules(Flags::json()))
+            .await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query available layout names (JSON-deserialized).
+    pub async fn layouts_typed(&self) -> HyprResult<Vec<String>> {
+        let raw = self.request(&commands::layouts(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query configuration errors (JSON-deserialized).
+    pub async fn config_errors_typed(&self) -> HyprResult<Vec<String>> {
+        let raw = self
+            .request(&commands::config_errors(Flags::json()))
+            .await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query session lock state (JSON-deserialized).
+    pub async fn locked_typed(&self) -> HyprResult<responses::LockState> {
+        let raw = self.request(&commands::locked(Flags::json())).await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query a configuration option value (JSON-deserialized).
+    pub async fn get_option_typed(&self, name: &str) -> HyprResult<responses::OptionValue> {
+        let raw = self
+            .request(&commands::get_option(name, Flags::json()))
+            .await?;
+        serde_json::from_str(&raw).map_err(HyprError::Json)
+    }
+
+    /// Query window decorations (JSON-deserialized).
+    pub async fn decorations_typed(
+        &self,
+        window_address: &str,
+    ) -> HyprResult<Vec<responses::DecorationInfo>> {
+        let raw = self
+            .request(&commands::decorations(window_address, Flags::json()))
+            .await?;
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 

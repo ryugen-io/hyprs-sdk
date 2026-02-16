@@ -6,6 +6,7 @@ pub mod client;
 pub mod commands;
 pub mod events;
 pub mod instance;
+pub mod responses;
 pub mod socket;
 
 #[cfg(feature = "blocking")]
