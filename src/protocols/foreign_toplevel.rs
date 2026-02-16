@@ -1,8 +1,19 @@
 //! wlr-foreign-toplevel-management: list and control opened windows.
 //!
-//! Used by taskbars to list windows and perform actions (maximize, minimize, close, activate).
+//! Provides [`ForeignToplevelClient`] for listing and controlling
+//! toplevel windows (for taskbars, window lists) via the
+//! `zwlr_foreign_toplevel_manager_v1` protocol.
 
 use std::fmt;
+
+use wayland_client::protocol::{wl_output, wl_registry, wl_seat};
+use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle, event_created_child};
+use wayland_protocols_wlr::foreign_toplevel::v1::client::{
+    zwlr_foreign_toplevel_handle_v1, zwlr_foreign_toplevel_manager_v1,
+};
+
+use crate::error::{HyprError, HyprResult};
+use crate::protocols::connection::WaylandConnection;
 
 /// State flags for a toplevel window (bitmask).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -52,6 +63,23 @@ impl ToplevelState {
     #[must_use]
     pub fn is_fullscreen(self) -> bool {
         self.contains(Self::FULLSCREEN)
+    }
+
+    /// Parse a protocol state byte array into flags.
+    ///
+    /// The array contains native-endian `u32` enum values where
+    /// 0=maximized, 1=minimized, 2=activated, 3=fullscreen.
+    fn from_protocol_array(data: &[u8]) -> Self {
+        let mut bits = 0u32;
+        for chunk in data.chunks_exact(4) {
+            if let Ok(bytes) = <[u8; 4]>::try_from(chunk) {
+                let val = u32::from_ne_bytes(bytes);
+                if val < 32 {
+                    bits |= 1 << val;
+                }
+            }
+        }
+        Self(bits)
     }
 }
 
@@ -107,5 +135,338 @@ impl fmt::Display for ToplevelAction {
             Self::Fullscreen => write!(f, "fullscreen"),
             Self::UnFullscreen => write!(f, "unfullscreen"),
         }
+    }
+}
+
+/// Opaque identifier for a toplevel window.
+///
+/// Obtained from [`ForeignToplevelEntry`] and used to perform
+/// actions via [`ForeignToplevelClient::perform_action`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ToplevelId(u32);
+
+/// A toplevel window discovered via the foreign toplevel protocol.
+#[derive(Debug, Clone)]
+pub struct ForeignToplevelEntry {
+    /// Opaque identifier for this toplevel.
+    pub id: ToplevelId,
+    /// Application identifier (e.g. `"org.mozilla.firefox"`).
+    pub app_id: String,
+    /// Window title.
+    pub title: String,
+    /// Current state flags.
+    pub state: ToplevelState,
+}
+
+/// Client for the `zwlr_foreign_toplevel_manager_v1` protocol.
+///
+/// Lists open windows and allows performing actions (maximize, minimize,
+/// close, activate) on them. Used by taskbars and window switchers.
+///
+/// # Example
+///
+/// ```no_run
+/// use hypr_sdk::protocols::connection::WaylandConnection;
+/// use hypr_sdk::protocols::foreign_toplevel::{ForeignToplevelClient, ToplevelAction};
+///
+/// let wl = WaylandConnection::connect().unwrap();
+/// let mut client = ForeignToplevelClient::connect(&wl).unwrap();
+///
+/// for toplevel in client.toplevels() {
+///     println!("{}: {} ({:?})", toplevel.app_id, toplevel.title, toplevel.state);
+/// }
+///
+/// // Close the first toplevel
+/// if let Some(toplevel) = client.toplevels().first() {
+///     client.perform_action(toplevel.id, ToplevelAction::Close).unwrap();
+/// }
+/// ```
+pub struct ForeignToplevelClient {
+    state: ForeignToplevelState,
+    event_queue: EventQueue<ForeignToplevelState>,
+}
+
+impl ForeignToplevelClient {
+    /// Connect to the foreign toplevel manager.
+    ///
+    /// Binds `zwlr_foreign_toplevel_manager_v1`, discovers all open
+    /// toplevel windows, and queries their properties.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HyprError::ProtocolNotSupported`] if the compositor
+    /// doesn't advertise `zwlr_foreign_toplevel_manager_v1`.
+    pub fn connect(wl: &WaylandConnection) -> HyprResult<Self> {
+        if !wl.has_protocol("zwlr_foreign_toplevel_manager_v1") {
+            return Err(HyprError::ProtocolNotSupported(
+                "zwlr_foreign_toplevel_manager_v1".into(),
+            ));
+        }
+
+        let conn = wl.connection();
+        let mut event_queue: EventQueue<ForeignToplevelState> = conn.new_event_queue();
+        let qh = event_queue.handle();
+        let display = conn.display();
+
+        let mut state = ForeignToplevelState::new();
+
+        // Registry roundtrip: bind manager + seat.
+        let _registry = display.get_registry(&qh, ());
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        if state.manager.is_none() {
+            return Err(HyprError::ProtocolNotSupported(
+                "zwlr_foreign_toplevel_manager_v1".into(),
+            ));
+        }
+
+        // Second roundtrip: receive toplevel handle events from manager.
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        // Third roundtrip: receive property events (title, app_id, state, done).
+        event_queue
+            .roundtrip(&mut state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        Ok(Self { state, event_queue })
+    }
+
+    /// All currently known (non-closed) toplevels.
+    #[must_use]
+    pub fn toplevels(&self) -> Vec<ForeignToplevelEntry> {
+        self.state
+            .handles
+            .iter()
+            .filter(|h| !h.closed)
+            .map(|h| ForeignToplevelEntry {
+                id: ToplevelId(h.id),
+                app_id: h.app_id.clone(),
+                title: h.title.clone(),
+                state: h.state,
+            })
+            .collect()
+    }
+
+    /// Perform an action on a toplevel by its ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the toplevel is not found, was closed,
+    /// or if the action requires a `wl_seat` that was not bound.
+    pub fn perform_action(&mut self, id: ToplevelId, action: ToplevelAction) -> HyprResult<()> {
+        let entry = self
+            .state
+            .handles
+            .iter()
+            .find(|h| h.id == id.0 && !h.closed)
+            .ok_or_else(|| HyprError::WaylandDispatch(format!("toplevel not found: {id:?}")))?;
+
+        match action {
+            ToplevelAction::Maximize => entry.handle.set_maximized(),
+            ToplevelAction::Unmaximize => entry.handle.unset_maximized(),
+            ToplevelAction::Minimize => entry.handle.set_minimized(),
+            ToplevelAction::Unminimize => entry.handle.unset_minimized(),
+            ToplevelAction::Activate => {
+                let seat = self.state.seat.as_ref().ok_or_else(|| {
+                    HyprError::WaylandDispatch("no wl_seat available for activate".into())
+                })?;
+                entry.handle.activate(seat);
+            }
+            ToplevelAction::Close => entry.handle.close(),
+            ToplevelAction::Fullscreen => entry.handle.set_fullscreen(None),
+            ToplevelAction::UnFullscreen => entry.handle.unset_fullscreen(),
+        }
+
+        let Self { state, event_queue } = self;
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Re-dispatch events to update toplevel state.
+    ///
+    /// Call this to pick up new toplevels, closed toplevels, or
+    /// property changes since the last call.
+    pub fn refresh(&mut self) -> HyprResult<()> {
+        let Self { state, event_queue } = self;
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+        Ok(())
+    }
+}
+
+impl fmt::Debug for ForeignToplevelClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ForeignToplevelClient")
+            .field("toplevels", &self.state.handles.len())
+            .finish()
+    }
+}
+
+// ── Internal state ───────────────────────────────────────────────────
+
+struct ForeignToplevelState {
+    manager: Option<zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1>,
+    seat: Option<wl_seat::WlSeat>,
+    handles: Vec<HandleEntry>,
+    next_id: u32,
+}
+
+struct HandleEntry {
+    id: u32,
+    handle: zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1,
+    title: String,
+    app_id: String,
+    state: ToplevelState,
+    closed: bool,
+}
+
+impl ForeignToplevelState {
+    fn new() -> Self {
+        Self {
+            manager: None,
+            seat: None,
+            handles: Vec::new(),
+            next_id: 0,
+        }
+    }
+}
+
+// ── Dispatch implementations ─────────────────────────────────────────
+
+impl Dispatch<wl_registry::WlRegistry, ()> for ForeignToplevelState {
+    fn event(
+        state: &mut Self,
+        registry: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _data: &(),
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
+            match interface.as_str() {
+                "zwlr_foreign_toplevel_manager_v1" if state.manager.is_none() => {
+                    let mgr = registry.bind::<
+                        zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1,
+                        (),
+                        Self,
+                    >(name, version.min(3), qh, ());
+                    state.manager = Some(mgr);
+                }
+                "wl_seat" if state.seat.is_none() => {
+                    let seat =
+                        registry.bind::<wl_seat::WlSeat, (), Self>(name, version.min(1), qh, ());
+                    state.seat = Some(seat);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl Dispatch<wl_seat::WlSeat, ()> for ForeignToplevelState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &wl_seat::WlSeat,
+        _event: wl_seat::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        // We only need the seat for activate requests; ignore events.
+    }
+}
+
+impl Dispatch<zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1, ()>
+    for ForeignToplevelState
+{
+    fn event(
+        state: &mut Self,
+        _proxy: &zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1,
+        event: zwlr_foreign_toplevel_manager_v1::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        match event {
+            zwlr_foreign_toplevel_manager_v1::Event::Toplevel { toplevel } => {
+                let id = state.next_id;
+                state.next_id += 1;
+                state.handles.push(HandleEntry {
+                    id,
+                    handle: toplevel,
+                    title: String::new(),
+                    app_id: String::new(),
+                    state: ToplevelState::default(),
+                    closed: false,
+                });
+            }
+            zwlr_foreign_toplevel_manager_v1::Event::Finished => {
+                // Manager is going away; no new toplevels will arrive.
+            }
+            _ => {}
+        }
+    }
+
+    event_created_child!(ForeignToplevelState, zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1, [
+        // Opcode 0 = toplevel event creates a new handle object.
+        0 => (zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1, ()),
+    ]);
+}
+
+impl Dispatch<zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1, ()>
+    for ForeignToplevelState
+{
+    fn event(
+        state: &mut Self,
+        proxy: &zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1,
+        event: zwlr_foreign_toplevel_handle_v1::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        if let Some(entry) = state.handles.iter_mut().find(|h| h.handle == *proxy) {
+            match event {
+                zwlr_foreign_toplevel_handle_v1::Event::Title { title } => {
+                    entry.title = title;
+                }
+                zwlr_foreign_toplevel_handle_v1::Event::AppId { app_id } => {
+                    entry.app_id = app_id;
+                }
+                zwlr_foreign_toplevel_handle_v1::Event::State { state: data } => {
+                    entry.state = ToplevelState::from_protocol_array(&data);
+                }
+                zwlr_foreign_toplevel_handle_v1::Event::Closed => {
+                    entry.closed = true;
+                }
+                // Done, OutputEnter, OutputLeave, Parent — ignored.
+                _ => {}
+            }
+        }
+    }
+}
+
+impl Dispatch<wl_output::WlOutput, ()> for ForeignToplevelState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &wl_output::WlOutput,
+        _event: wl_output::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        // Output events not needed for foreign toplevel management.
     }
 }
