@@ -9,3 +9,7 @@ dependencies = [
 
 [project.scripts]
 hypr-tui = "hypr_tui.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
