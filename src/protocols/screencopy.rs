@@ -249,95 +249,10 @@ impl ScreencopyClient {
             .as_ref()
             .ok_or_else(|| HyprError::ProtocolNotSupported("zwlr_screencopy_manager_v1".into()))?;
 
-        // Start frame capture.
         let cursor = if overlay_cursor { 1 } else { 0 };
         let _frame = manager.capture_output(cursor, &output.output, qh, ());
 
-        // Reset frame state.
-        state.frame_buffer_info = None;
-        state.frame_flags = None;
-        state.frame_ready = false;
-        state.frame_failed = false;
-
-        // Roundtrip to receive Buffer event with format info.
-        event_queue
-            .roundtrip(state)
-            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-
-        let buf_info = state.frame_buffer_info.as_ref().ok_or_else(|| {
-            HyprError::WaylandDispatch("no buffer info received from screencopy".into())
-        })?;
-
-        let format = buf_info.format;
-        let width = buf_info.width;
-        let height = buf_info.height;
-        let stride = buf_info.stride;
-        let size = (stride * height) as usize;
-
-        // Create shared memory buffer.
-        let shm = state
-            .shm
-            .as_ref()
-            .ok_or_else(|| HyprError::WaylandDispatch("wl_shm not available".into()))?;
-
-        let file = create_shm_file(size)?;
-        let pool = shm.create_pool(file.as_fd(), size as i32, qh, ());
-        let buffer = pool.create_buffer(
-            0,
-            width as i32,
-            height as i32,
-            stride as i32,
-            format.to_wl_format(),
-            qh,
-            (),
-        );
-
-        // Copy frame into buffer.
-        if let Some(ref frame_proxy) = state.frame_proxy {
-            frame_proxy.copy(&buffer);
-        }
-
-        // Roundtrip to process copy and receive Ready/Failed.
-        event_queue
-            .roundtrip(state)
-            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-
-        // Extra roundtrip in case Ready hasn't arrived yet.
-        if !state.frame_ready && !state.frame_failed {
-            event_queue
-                .roundtrip(state)
-                .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-        }
-
-        if state.frame_failed {
-            return Err(HyprError::WaylandDispatch("screencopy frame failed".into()));
-        }
-
-        if !state.frame_ready {
-            return Err(HyprError::WaylandDispatch(
-                "screencopy frame not ready after roundtrips".into(),
-            ));
-        }
-
-        // Read pixels from shared memory.
-        let data = read_shm_file(&file, size)?;
-
-        // Cleanup.
-        buffer.destroy();
-        pool.destroy();
-
-        let flags = FrameFlags(state.frame_flags.unwrap_or(0));
-
-        Ok(CapturedFrame {
-            format: FrameFormat {
-                pixel_format: format,
-                width,
-                height,
-                stride,
-            },
-            flags,
-            data,
-        })
+        complete_capture(state, event_queue, qh)
     }
 
     /// Capture a region of an output by index.
@@ -379,85 +294,7 @@ impl ScreencopyClient {
             (),
         );
 
-        // Reset frame state.
-        state.frame_buffer_info = None;
-        state.frame_flags = None;
-        state.frame_ready = false;
-        state.frame_failed = false;
-
-        // Roundtrip to receive Buffer event.
-        event_queue
-            .roundtrip(state)
-            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-
-        let buf_info = state.frame_buffer_info.as_ref().ok_or_else(|| {
-            HyprError::WaylandDispatch("no buffer info received from screencopy".into())
-        })?;
-
-        let format = buf_info.format;
-        let width = buf_info.width;
-        let height = buf_info.height;
-        let stride = buf_info.stride;
-        let size = (stride * height) as usize;
-
-        let shm = state
-            .shm
-            .as_ref()
-            .ok_or_else(|| HyprError::WaylandDispatch("wl_shm not available".into()))?;
-
-        let file = create_shm_file(size)?;
-        let pool = shm.create_pool(file.as_fd(), size as i32, qh, ());
-        let buffer = pool.create_buffer(
-            0,
-            width as i32,
-            height as i32,
-            stride as i32,
-            format.to_wl_format(),
-            qh,
-            (),
-        );
-
-        if let Some(ref frame_proxy) = state.frame_proxy {
-            frame_proxy.copy(&buffer);
-        }
-
-        event_queue
-            .roundtrip(state)
-            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-
-        if !state.frame_ready && !state.frame_failed {
-            event_queue
-                .roundtrip(state)
-                .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
-        }
-
-        if state.frame_failed {
-            return Err(HyprError::WaylandDispatch("screencopy frame failed".into()));
-        }
-
-        if !state.frame_ready {
-            return Err(HyprError::WaylandDispatch(
-                "screencopy frame not ready after roundtrips".into(),
-            ));
-        }
-
-        let data = read_shm_file(&file, size)?;
-
-        buffer.destroy();
-        pool.destroy();
-
-        let flags = FrameFlags(state.frame_flags.unwrap_or(0));
-
-        Ok(CapturedFrame {
-            format: FrameFormat {
-                pixel_format: format,
-                width,
-                height,
-                stride,
-            },
-            flags,
-            data,
-        })
+        complete_capture(state, event_queue, qh)
     }
 }
 
@@ -505,6 +342,89 @@ fn read_shm_file(file: &std::fs::File, size: usize) -> HyprResult<Vec<u8>> {
     file.read_exact(&mut data)
         .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
     Ok(data)
+}
+
+/// Shared capture logic: wait for buffer info, allocate shm, copy frame, read pixels.
+fn complete_capture(
+    state: &mut ScreencopyState,
+    event_queue: &mut EventQueue<ScreencopyState>,
+    qh: &QueueHandle<ScreencopyState>,
+) -> HyprResult<CapturedFrame> {
+    state.frame_buffer_info = None;
+    state.frame_flags = None;
+    state.frame_ready = false;
+    state.frame_failed = false;
+
+    event_queue
+        .roundtrip(state)
+        .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+    let buf_info = state.frame_buffer_info.as_ref().ok_or_else(|| {
+        HyprError::WaylandDispatch("no buffer info received from screencopy".into())
+    })?;
+
+    let format = buf_info.format;
+    let width = buf_info.width;
+    let height = buf_info.height;
+    let stride = buf_info.stride;
+    let size = (stride * height) as usize;
+
+    let shm = state
+        .shm
+        .as_ref()
+        .ok_or_else(|| HyprError::WaylandDispatch("wl_shm not available".into()))?;
+
+    let file = create_shm_file(size)?;
+    let pool = shm.create_pool(file.as_fd(), size as i32, qh, ());
+    let buffer = pool.create_buffer(
+        0,
+        width as i32,
+        height as i32,
+        stride as i32,
+        format.to_wl_format(),
+        qh,
+        (),
+    );
+
+    if let Some(ref frame_proxy) = state.frame_proxy {
+        frame_proxy.copy(&buffer);
+    }
+
+    event_queue
+        .roundtrip(state)
+        .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+    if !state.frame_ready && !state.frame_failed {
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+    }
+
+    if state.frame_failed {
+        return Err(HyprError::WaylandDispatch("screencopy frame failed".into()));
+    }
+
+    if !state.frame_ready {
+        return Err(HyprError::WaylandDispatch(
+            "screencopy frame not ready after roundtrips".into(),
+        ));
+    }
+
+    let data = read_shm_file(&file, size)?;
+
+    buffer.destroy();
+    pool.destroy();
+
+    Ok(CapturedFrame {
+        format: FrameFormat {
+            pixel_format: format,
+            width,
+            height,
+            stride,
+        },
+        flags: FrameFlags(state.frame_flags.unwrap_or(0)),
+        data,
+    })
 }
 
 // ── Internal state ───────────────────────────────────────────────────
