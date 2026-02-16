@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll, Center
 from textual.widgets import (
-    DataTable, Footer, Header, Static, TabbedContent, TabPane, RichLog,
+    DataTable, Footer, Header, Static, TabbedContent, TabPane,
+    RichLog, Rule, Sparkline, Label, ProgressBar, Digits,
+    LoadingIndicator,
 )
 from textual import work
+from textual.reactive import reactive
 
 from . import runners
 
@@ -18,25 +21,96 @@ Screen {
     background: $surface;
 }
 
-#summary-bar {
-    height: 3;
+/* ── Status cards row ──────────────────────────────────────────── */
+
+#status-row {
+    height: 5;
     layout: horizontal;
     padding: 0 1;
-    background: $primary-background;
+    margin: 0 0 0 0;
 }
 
-.summary-cell {
+.status-card {
     width: 1fr;
+    height: 5;
+    margin: 0 1 0 0;
+    padding: 0 2;
+    border: tall $primary-darken-2;
+    content-align: center middle;
+}
+
+.status-card:last-of-type {
+    margin-right: 0;
+}
+
+.status-card.ok {
+    border: tall $success;
+}
+
+.status-card.err {
+    border: tall $error;
+}
+
+.status-card.pending {
+    border: tall $primary-darken-2;
+}
+
+.card-icon {
+    width: 4;
+    height: 3;
     content-align: center middle;
     text-style: bold;
 }
 
-.pass { color: $success; }
-.fail { color: $error; }
-.warn { color: $warning; }
-.info { color: $primary; }
+.card-body {
+    width: 1fr;
+    height: 3;
+    padding: 0 0 0 1;
+}
 
-DataTable {
+.card-title {
+    text-style: bold;
+    color: $text-muted;
+    text-opacity: 70%;
+}
+
+.card-value {
+    text-style: bold;
+}
+
+.card-value.pass { color: $success; }
+.card-value.fail { color: $error; }
+.card-value.warn { color: $warning; }
+.card-value.info { color: $text; }
+
+/* ── Tabs ──────────────────────────────────────────────────────── */
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+}
+
+ContentSwitcher {
+    height: 1fr;
+}
+
+/* ── Tests tab ─────────────────────────────────────────────────── */
+
+#test-table {
+    height: 1fr;
+}
+
+#test-table > .datatable--header {
+    text-style: bold;
+    background: $primary-background;
+}
+
+/* ── Benchmarks tab ────────────────────────────────────────────── */
+
+#bench-layout {
     height: 1fr;
 }
 
@@ -44,85 +118,228 @@ DataTable {
     height: 1fr;
 }
 
-#fuzz-table {
-    height: 1fr;
-}
-
-#test-table {
-    height: 1fr;
-}
-
-RichLog {
-    height: 1fr;
-    border: solid $primary;
+#bench-sparkline-box {
+    height: 8;
+    border: tall $primary-darken-2;
+    margin: 0 0 0 0;
     padding: 0 1;
 }
 
-TabPane {
-    padding: 0;
+#bench-sparkline-label {
+    height: 1;
+    color: $text-muted;
+    text-style: italic;
+    content-align: center middle;
+}
+
+Sparkline {
+    height: 5;
+    margin: 0;
+}
+
+Sparkline > .sparkline--max-color {
+    color: $warning;
+}
+
+Sparkline > .sparkline--min-color {
+    color: $success;
+}
+
+/* ── Fuzz tab ──────────────────────────────────────────────────── */
+
+#fuzz-layout {
+    height: 1fr;
+}
+
+#fuzz-table {
+    height: auto;
+    max-height: 12;
+}
+
+#fuzz-log {
+    height: 1fr;
+    border: tall $primary-darken-2;
+    padding: 0 1;
+    margin: 1 0 0 0;
+}
+
+/* ── DataTable global ──────────────────────────────────────────── */
+
+DataTable {
+    scrollbar-size: 1 1;
+}
+
+DataTable > .datatable--header {
+    text-style: bold;
+    background: $primary-background;
+}
+
+/* ── Loading overlay ───────────────────────────────────────────── */
+
+#loading-overlay {
+    display: none;
+    layer: overlay;
+    width: 100%;
+    height: 100%;
+    background: $surface 80%;
+    content-align: center middle;
+}
+
+#loading-overlay.visible {
+    display: block;
+}
+
+#loading-msg {
+    width: auto;
+    height: auto;
+    padding: 1 3;
+    background: $panel;
+    border: tall $primary;
+    content-align: center middle;
+    text-style: bold;
 }
 """
 
+
+# -- Status card widget ----------------------------------------------------
+
+class StatusCard(Static):
+    """A compact status indicator card."""
+
+    def __init__(self, icon: str, title: str, card_id: str) -> None:
+        super().__init__(id=card_id, classes="status-card pending")
+        self._icon = icon
+        self._title = title
+        self._value = "--"
+        self._value_class = "info"
+
+    def compose(self) -> ComposeResult:
+        with Horizontal():
+            yield Static(self._icon, classes="card-icon")
+            with Vertical(classes="card-body"):
+                yield Static(self._title, classes="card-title")
+                yield Static(self._value, id=f"{self.id}-val", classes="card-value info")
+
+    def set_value(self, value: str, status: str = "info") -> None:
+        self._value = value
+        self._value_class = status
+        try:
+            val_widget = self.query_one(f"#{self.id}-val", Static)
+            val_widget.content = value
+            val_widget.remove_class("pass", "fail", "warn", "info")
+            val_widget.add_class(status)
+        except Exception:
+            pass
+
+        self.remove_class("ok", "err", "pending")
+        if status == "pass":
+            self.add_class("ok")
+        elif status == "fail":
+            self.add_class("err")
+        else:
+            self.add_class("pending")
+
+
+# -- Main app --------------------------------------------------------------
 
 class HyprTui(App):
     """TUI dashboard for hypr-sdk quality metrics."""
 
     CSS = CSS
-    TITLE = "hypr-sdk dashboard"
+    TITLE = "hypr-sdk"
+    SUB_TITLE = "quality dashboard"
     BINDINGS = [
-        ("t", "run_tests", "Run Tests"),
-        ("b", "run_benchmarks", "Run Benchmarks"),
-        ("f", "run_fuzz", "Run Fuzz (10s)"),
-        ("r", "refresh_all", "Refresh All"),
+        ("t", "run_tests", "Tests"),
+        ("b", "run_benchmarks", "Bench"),
+        ("f", "run_fuzz", "Fuzz (10s)"),
+        ("r", "refresh_all", "Refresh"),
+        ("d", "toggle_dark", "Dark/Light"),
         ("q", "quit", "Quit"),
     ]
 
+    bench_data: reactive[list[float]] = reactive(list, recompose=False)
+
     def compose(self) -> ComposeResult:
-        yield Header()
-        with Horizontal(id="summary-bar"):
-            yield Static("Tests: --", id="sum-tests", classes="summary-cell info")
-            yield Static("Benchmarks: --", id="sum-bench", classes="summary-cell info")
-            yield Static("Fuzz: --", id="sum-fuzz", classes="summary-cell info")
+        yield Header(show_clock=True)
+
+        with Horizontal(id="status-row"):
+            yield StatusCard("\u2714", "TESTS", "card-tests")
+            yield StatusCard("\u26a1", "BENCHMARKS", "card-bench")
+            yield StatusCard("\U0001f50d", "FUZZ", "card-fuzz")
 
         with TabbedContent():
-            with TabPane("Tests", id="tab-tests"):
+            with TabPane("Tests [bold dim]t[/]", id="tab-tests"):
                 yield DataTable(id="test-table")
 
-            with TabPane("Benchmarks", id="tab-bench"):
-                yield DataTable(id="bench-table")
+            with TabPane("Benchmarks [bold dim]b[/]", id="tab-bench"):
+                with Vertical(id="bench-layout"):
+                    with Vertical(id="bench-sparkline-box"):
+                        yield Static(
+                            "benchmark latency distribution (ns)",
+                            id="bench-sparkline-label",
+                        )
+                        yield Sparkline([], id="bench-sparkline")
+                    yield DataTable(id="bench-table")
 
-            with TabPane("Fuzz", id="tab-fuzz"):
-                with Vertical():
+            with TabPane("Fuzz [bold dim]f[/]", id="tab-fuzz"):
+                with Vertical(id="fuzz-layout"):
                     yield DataTable(id="fuzz-table")
                     yield RichLog(id="fuzz-log", markup=True)
 
         yield Footer()
 
     def on_mount(self) -> None:
-        # Set up test table
+        # Test table
         test_tbl = self.query_one("#test-table", DataTable)
         test_tbl.cursor_type = "row"
         test_tbl.zebra_stripes = True
-        test_tbl.add_columns("Status", "Test Name")
+        test_tbl.add_columns("", "Test Name", "Suite")
 
-        # Set up bench table
+        # Bench table
         bench_tbl = self.query_one("#bench-table", DataTable)
         bench_tbl.cursor_type = "row"
         bench_tbl.zebra_stripes = True
-        bench_tbl.add_columns("Benchmark", "Mean", "95% CI")
+        bench_tbl.add_columns("Benchmark", "Mean", "95% CI", "Bar")
 
-        # Set up fuzz table
+        # Fuzz table
         fuzz_tbl = self.query_one("#fuzz-table", DataTable)
         fuzz_tbl.cursor_type = "row"
         fuzz_tbl.zebra_stripes = True
-        fuzz_tbl.add_columns("Target", "Status", "Corpus", "Crashes")
+        fuzz_tbl.add_columns("", "Target", "Status", "Corpus", "Crashes")
 
-        # Load cached data on startup
         self.load_cached_data()
+
+    def action_toggle_dark(self) -> None:
+        self.theme = "textual-light" if self.theme == "textual-dark" else "textual-dark"
+
+    # -- Actions ---------------------------------------------------------------
+
+    def action_run_tests(self) -> None:
+        card = self.query_one("#card-tests", StatusCard)
+        card.set_value("running...", "warn")
+        self.notify("\u23f3 Running cargo test...", timeout=3)
+        self.do_run_tests()
+
+    def action_run_benchmarks(self) -> None:
+        card = self.query_one("#card-bench", StatusCard)
+        card.set_value("running...", "warn")
+        self.notify("\u23f3 Running cargo bench --quick...", timeout=3)
+        self.do_run_benchmarks()
+
+    def action_run_fuzz(self) -> None:
+        card = self.query_one("#card-fuzz", StatusCard)
+        card.set_value("running...", "warn")
+        self.notify("\u23f3 Running fuzz targets (10s each)...", timeout=3)
+        self.do_run_fuzz()
+
+    def action_refresh_all(self) -> None:
+        self.notify("\u21bb Refreshing cached data...", timeout=2)
+        self.load_cached_data()
+
+    # -- Workers ---------------------------------------------------------------
 
     @work(thread=True)
     def load_cached_data(self) -> None:
-        """Load already-available benchmark and fuzz data without running anything."""
         benches = runners.load_benchmarks()
         if benches:
             self.app.call_from_thread(self._update_bench_table, benches)
@@ -130,26 +347,6 @@ class HyprTui(App):
         fuzz_targets = runners.load_fuzz_status()
         if fuzz_targets:
             self.app.call_from_thread(self._update_fuzz_table, fuzz_targets)
-
-    # -- Actions ---------------------------------------------------------------
-
-    def action_run_tests(self) -> None:
-        self.notify("Running tests...", timeout=2)
-        self.do_run_tests()
-
-    def action_run_benchmarks(self) -> None:
-        self.notify("Running benchmarks (quick mode)...", timeout=2)
-        self.do_run_benchmarks()
-
-    def action_run_fuzz(self) -> None:
-        self.notify("Running all fuzz targets (10s each)...", timeout=2)
-        self.do_run_fuzz()
-
-    def action_refresh_all(self) -> None:
-        self.notify("Refreshing all...", timeout=2)
-        self.load_cached_data()
-
-    # -- Workers ---------------------------------------------------------------
 
     @work(thread=True)
     def do_run_tests(self) -> None:
@@ -167,12 +364,16 @@ class HyprTui(App):
         log = self.query_one("#fuzz-log", RichLog)
         for t in targets:
             self.app.call_from_thread(
-                log.write, f"[bold]Fuzzing {t.name}...[/bold]"
+                log.write, f"[bold cyan]\u25b6 Fuzzing {t.name}...[/bold cyan]"
             )
             result = runners.run_fuzz(t.name, duration=10)
+            icon = "[green]\u2714[/green]" if result.crash_count == 0 else "[red]\u2718[/red]"
             self.app.call_from_thread(
                 log.write,
-                f"  {result.name}: {result.corpus_count} corpus, {result.crash_count} crashes"
+                f"  {icon} {result.name}: "
+                f"[dim]{result.corpus_count} corpus[/dim], "
+                f"{'[red]' if result.crash_count else ''}{result.crash_count} crashes"
+                f"{'[/red]' if result.crash_count else ''}"
             )
 
         updated = runners.load_fuzz_status()
@@ -183,63 +384,101 @@ class HyprTui(App):
     def _update_test_table(self, summary: runners.TestSummary) -> None:
         tbl = self.query_one("#test-table", DataTable)
         tbl.clear()
+        card = self.query_one("#card-tests", StatusCard)
 
         if summary.error:
-            tbl.add_row("ERR", summary.error)
-            self.query_one("#sum-tests", Static).content = "Tests: ERROR"
-            self.query_one("#sum-tests").remove_class("pass")
-            self.query_one("#sum-tests").add_class("fail")
+            tbl.add_row("\u2718", summary.error, "")
+            card.set_value("ERROR", "fail")
             return
 
         for r in sorted(summary.results, key=lambda x: (x.status != "failed", x.name)):
-            icon = "[green]PASS[/green]" if r.status == "ok" else "[red]FAIL[/red]"
-            if r.status == "ignored":
-                icon = "[yellow]SKIP[/yellow]"
-            tbl.add_row(icon, r.name)
+            if r.status == "ok":
+                icon = "[green]\u2714[/green]"
+            elif r.status == "failed":
+                icon = "[red]\u2718[/red]"
+            else:
+                icon = "[yellow]\u25cb[/yellow]"
+            tbl.add_row(icon, r.name, r.suite)
 
         total = summary.passed + summary.failed + summary.ignored
-        label = f"Tests: {summary.passed}/{total} passed"
-        sum_widget = self.query_one("#sum-tests", Static)
-        sum_widget.content = label
-        sum_widget.remove_class("pass", "fail", "warn", "info")
         if summary.failed > 0:
-            label += f" ({summary.failed} FAILED)"
-            sum_widget.content = label
-            sum_widget.add_class("fail")
+            card.set_value(f"{summary.passed}/{total} ({summary.failed} FAILED)", "fail")
         else:
-            sum_widget.add_class("pass")
+            card.set_value(f"{summary.passed}/{total} passed", "pass")
 
     def _update_bench_table(self, benches: list[runners.BenchResult]) -> None:
         tbl = self.query_one("#bench-table", DataTable)
         tbl.clear()
-        for b in benches:
-            tbl.add_row(b.name, b.mean_display, b.ci_display)
+        card = self.query_one("#card-bench", StatusCard)
 
-        self.query_one("#sum-bench", Static).content = f"Benchmarks: {len(benches)} results"
-        sum_widget = self.query_one("#sum-bench", Static)
-        sum_widget.remove_class("info")
-        sum_widget.add_class("pass")
+        if not benches:
+            card.set_value("no data", "info")
+            return
+
+        max_ns = max(b.mean_ns for b in benches)
+        spark_data: list[float] = []
+
+        for b in benches:
+            # Visual bar proportional to max
+            bar_width = 20
+            filled = int((b.mean_ns / max_ns) * bar_width) if max_ns > 0 else 0
+            bar = "\u2588" * filled + "\u2591" * (bar_width - filled)
+
+            # Color the bar based on magnitude
+            if b.mean_ns < 100:
+                bar = f"[green]{bar}[/green]"
+            elif b.mean_ns < 1000:
+                bar = f"[cyan]{bar}[/cyan]"
+            elif b.mean_ns < 10000:
+                bar = f"[yellow]{bar}[/yellow]"
+            else:
+                bar = f"[red]{bar}[/red]"
+
+            tbl.add_row(b.name, b.mean_display, b.ci_display, bar)
+            spark_data.append(b.mean_ns)
+
+        # Update sparkline
+        try:
+            sparkline = self.query_one("#bench-sparkline", Sparkline)
+            sparkline.data = spark_data
+        except Exception:
+            pass
+
+        card.set_value(f"{len(benches)} benchmarks", "pass")
 
     def _update_fuzz_table(self, targets: list[runners.FuzzTarget]) -> None:
         tbl = self.query_one("#fuzz-table", DataTable)
         tbl.clear()
+        card = self.query_one("#card-fuzz", StatusCard)
         crashes = 0
+
         for t in targets:
-            status = "[green]OK[/green]" if t.has_run and t.crash_count == 0 else (
-                "[red]CRASH[/red]" if t.crash_count > 0 else "[dim]not run[/dim]"
+            if t.crash_count > 0:
+                icon = "[red]\u2718[/red]"
+                status = "[red bold]CRASH[/red bold]"
+            elif t.has_run:
+                icon = "[green]\u2714[/green]"
+                status = "[green]clean[/green]"
+            else:
+                icon = "[dim]\u25cb[/dim]"
+                status = "[dim]not run[/dim]"
+
+            corpus_display = str(t.corpus_count) if t.corpus_count > 0 else "[dim]0[/dim]"
+            crash_display = (
+                f"[red bold]{t.crash_count}[/red bold]"
+                if t.crash_count > 0
+                else "[dim]0[/dim]"
             )
-            tbl.add_row(t.name, status, str(t.corpus_count), str(t.crash_count))
+
+            tbl.add_row(icon, t.name, status, corpus_display, crash_display)
             crashes += t.crash_count
 
-        sum_widget = self.query_one("#sum-fuzz", Static)
-        sum_widget.content = f"Fuzz: {len(targets)} targets, {crashes} crashes"
-        sum_widget.remove_class("pass", "fail", "info")
         if crashes > 0:
-            sum_widget.add_class("fail")
+            card.set_value(f"{len(targets)} targets, {crashes} CRASHES", "fail")
         elif any(t.has_run for t in targets):
-            sum_widget.add_class("pass")
+            card.set_value(f"{len(targets)} targets, all clean", "pass")
         else:
-            sum_widget.add_class("info")
+            card.set_value(f"{len(targets)} targets", "info")
 
 
 def main() -> None:
