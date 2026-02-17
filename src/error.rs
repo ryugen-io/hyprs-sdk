@@ -39,6 +39,14 @@ pub enum HyprError {
     #[cfg(feature = "wayland")]
     #[error("protocol not supported: {0}")]
     ProtocolNotSupported(String),
+
+    /// Plugin API error.
+    #[error("plugin error: {0}")]
+    Plugin(String),
+
+    /// A null handle was passed where a valid handle is required.
+    #[error("null plugin handle")]
+    NullHandle,
 }
 
 /// Convenience result type for hypr-sdk.

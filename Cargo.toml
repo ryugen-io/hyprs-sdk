@@ -17,6 +17,10 @@ wayland-protocols-wlr = { version = "0.3", features = ["client"], optional = tru
 wayland-protocols-misc = { version = "0.3", features = ["client"], optional = true }
 wayland-protocols-hyprland = { version = "1.2", features = ["client"], optional = true }
 
+[build-dependencies]
+cc = { version = "1", optional = true }
+pkg-config = { version = "0.3", optional = true }
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 
@@ -24,6 +28,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 default = []
 blocking = []
 wayland = ["wayland-client", "wayland-protocols", "wayland-protocols-wlr", "wayland-protocols-misc", "wayland-protocols-hyprland"]
+plugin-ffi = ["cc", "pkg-config"]
 
 [[bench]]
 name = "event_parsing"
