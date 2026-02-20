@@ -9,6 +9,8 @@ import time
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 
 def _project_root() -> Path:
@@ -562,6 +564,7 @@ class SourceUpdate:
     current_version: str = "unknown"
     latest_version: str = "unknown"
     has_update: bool = False
+    sdk_update_needed: bool = False
     sdk_summary: str = ""  # diff --stat summary for SDK-relevant paths
     new_commands: list[str] = field(default_factory=list)
     removed_commands: list[str] = field(default_factory=list)
@@ -593,58 +596,191 @@ _SDK_PATHS = [
     "src/protocols/",
 ]
 
+_CATEGORY_PATHS = {
+    "IPC": [
+        "src/debug/HyprCtl.cpp",
+        "src/managers/EventManager.cpp",
+        "src/managers/KeybindManager.cpp",
+    ],
+    "Protocols": ["protocols/", "src/protocols/"],
+    "Plugin API": [
+        "src/plugins/PluginAPI.hpp",
+        "src/plugins/HookSystem.hpp",
+        "src/plugins/PluginSystem.hpp",
+        "src/managers/HookSystemManager.hpp",
+    ],
+    "Types": ["src/desktop/", "src/helpers/Monitor.hpp"],
+    "Config": ["src/config/ConfigManager.hpp", "src/config/ConfigValue.hpp"],
+}
+
+_HYPR_REPO_API = "https://api.github.com/repos/hyprwm/Hyprland"
+
+
+def _semver_key(tag: str) -> list[object]:
+    return [
+        int(x) if x.isdigit() else x
+        for x in re.split(r"[.\-]", tag.lstrip("v"))
+    ]
+
+
+def _normalize_tag(version: str) -> str:
+    v = version.strip()
+    if not v:
+        return "unknown"
+    return v if v.startswith("v") else f"v{v}"
+
+
+def _matches_path(path: str, patterns: list[str]) -> bool:
+    for p in patterns:
+        if p.endswith("/") and path.startswith(p):
+            return True
+        if path == p:
+            return True
+    return False
+
+
+def _format_diff_summary(files: list[dict[str, object]]) -> str:
+    if not files:
+        return ""
+    additions = sum(int(f.get("additions", 0)) for f in files)
+    deletions = sum(int(f.get("deletions", 0)) for f in files)
+    file_word = "file" if len(files) == 1 else "files"
+    return (
+        f"{len(files)} {file_word} changed, "
+        f"{additions} insertions(+), {deletions} deletions(-)"
+    )
+
+
+def _dedupe(items: list[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def _github_json(url: str) -> object:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "hypr-sdk-hypr-tui",
+    }
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    req = urlrequest.Request(url, headers=headers)
+    try:
+        with urlrequest.urlopen(req, timeout=20) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urlerror.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        if e.code == 403 and "rate limit" in body.lower():
+            raise RuntimeError(
+                "GitHub API rate limit reached (set GITHUB_TOKEN for higher limits)"
+            ) from e
+        raise RuntimeError(f"GitHub API error ({e.code}) for {url}") from e
+    except urlerror.URLError as e:
+        raise RuntimeError(f"Network error while contacting GitHub: {e.reason}") from e
+
+
+def _read_target_version_from_sdk() -> str:
+    lib_rs = ROOT / "src" / "lib.rs"
+    if not lib_rs.exists():
+        return "unknown"
+    try:
+        text = lib_rs.read_text(encoding="utf-8")
+    except OSError:
+        return "unknown"
+    m = re.search(
+        r'HYPRLAND_TARGET_VERSION\s*:\s*&str\s*=\s*"([^"]+)"',
+        text,
+    )
+    if not m:
+        return "unknown"
+    return _normalize_tag(m.group(1))
+
+
+def _resolve_current_hyprland_version(version_file: Path) -> str:
+    if version_file.exists():
+        try:
+            v = version_file.read_text(encoding="utf-8").strip()
+            if v:
+                return _normalize_tag(v)
+        except OSError:
+            pass
+    return _read_target_version_from_sdk()
+
+
+def _fetch_latest_hyprland_tag() -> str:
+    # Prefer latest release tag; fallback to tags list.
+    release = _github_json(f"{_HYPR_REPO_API}/releases/latest")
+    if isinstance(release, dict):
+        tag = str(release.get("tag_name", "")).strip()
+        if tag:
+            return _normalize_tag(tag)
+
+    tags = _github_json(f"{_HYPR_REPO_API}/tags?per_page=100")
+    if not isinstance(tags, list):
+        raise RuntimeError("Malformed GitHub tags response")
+    names = [
+        str(t.get("name", "")).strip()
+        for t in tags
+        if isinstance(t, dict)
+    ]
+    names = [n for n in names if n and re.match(r"^v?\d+\.\d+\.\d+", n)]
+    if not names:
+        raise RuntimeError("No Hyprland version tags found on GitHub")
+    names.sort(key=_semver_key)
+    return _normalize_tag(names[-1])
+
+
+def _extract_patch_changes(
+    patch: str,
+    predicate: object,
+) -> tuple[list[str], list[str]]:
+    added: list[str] = []
+    removed: list[str] = []
+    for raw in patch.splitlines():
+        if raw.startswith("+++") or raw.startswith("---"):
+            continue
+        if raw.startswith("+"):
+            line = raw[1:].strip()
+            if predicate(line):
+                added.append(line)
+        elif raw.startswith("-"):
+            line = raw[1:].strip()
+            if predicate(line):
+                removed.append(line)
+    return added, removed
+
 
 def check_hyprland_updates(progress_cb: object = None) -> SourceUpdate:
-    """Check .sources/Hyprland for upstream updates.
-
-    ``progress_cb(step: str)`` is called with status messages.
-    """
+    """Check upstream Hyprland updates without requiring a local clone."""
     result = SourceUpdate()
-    hypr_dir = ROOT / ".sources" / "Hyprland"
     version_file = ROOT / ".sources" / ".version"
 
-    if not (hypr_dir / ".git").exists():
-        result.error = ".sources/Hyprland not cloned"
-        return result
-
-    # Current version
-    if version_file.exists():
-        result.current_version = version_file.read_text().strip()
-    else:
-        result.error = "No .sources/.version file"
-        return result
-
-    # Fetch tags
     if progress_cb:
-        progress_cb("Fetching tags...")
-    try:
-        subprocess.run(
-            ["git", "-C", str(hypr_dir), "fetch", "--tags", "--quiet"],
-            capture_output=True, timeout=30,
+        progress_cb("Resolving current version...")
+    result.current_version = _resolve_current_hyprland_version(version_file)
+    if result.current_version == "unknown":
+        result.error = (
+            "No baseline version found "
+            "(.sources/.version or HYPRLAND_TARGET_VERSION)"
         )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        result.error = "Failed to fetch tags"
         return result
 
-    # Latest tag
     if progress_cb:
-        progress_cb("Checking latest version...")
+        progress_cb("Fetching latest version...")
     try:
-        proc = subprocess.run(
-            ["git", "-C", str(hypr_dir), "tag", "--list", "v*"],
-            capture_output=True, text=True, timeout=10,
-        )
-        tags = [t.strip() for t in proc.stdout.splitlines() if t.strip()]
-        if not tags:
-            result.error = "No version tags found"
-            return result
-        tags.sort(key=lambda t: [
-            int(x) if x.isdigit() else x
-            for x in re.split(r"[.\-]", t.lstrip("v"))
-        ])
-        result.latest_version = tags[-1]
-    except Exception as e:
-        result.error = f"Failed to read tags: {e}"
+        result.latest_version = _fetch_latest_hyprland_tag()
+    except RuntimeError as e:
+        result.error = str(e)
         return result
 
     if result.current_version == result.latest_version:
@@ -657,74 +793,102 @@ def check_hyprland_updates(progress_cb: object = None) -> SourceUpdate:
 
     if progress_cb:
         progress_cb(f"Diffing {from_v} -> {to_v}...")
+    try:
+        compare = _github_json(f"{_HYPR_REPO_API}/compare/{from_v}...{to_v}")
+    except RuntimeError as e:
+        result.error = str(e)
+        return result
 
-    def _git_diff(args: list[str]) -> str:
-        try:
-            proc = subprocess.run(
-                ["git", "-C", str(hypr_dir)] + args,
-                capture_output=True, text=True, timeout=30,
+    if not isinstance(compare, dict):
+        result.error = "Malformed GitHub compare response"
+        return result
+
+    files = compare.get("files", [])
+    if not isinstance(files, list):
+        result.error = "Malformed GitHub compare response: missing file list"
+        return result
+
+    sdk_files: list[dict[str, object]] = []
+    for f in files:
+        if not isinstance(f, dict):
+            continue
+        path = str(f.get("filename", ""))
+        prev_path = str(f.get("previous_filename", ""))
+        if _matches_path(path, _SDK_PATHS) or _matches_path(prev_path, _SDK_PATHS):
+            sdk_files.append(f)
+    result.sdk_update_needed = bool(sdk_files)
+    result.sdk_summary = _format_diff_summary(sdk_files)
+
+    for cat_name, paths in _CATEGORY_PATHS.items():
+        cat_files = [
+            f for f in files
+            if isinstance(f, dict)
+            and (
+                _matches_path(str(f.get("filename", "")), paths)
+                or _matches_path(str(f.get("previous_filename", "")), paths)
             )
-            return proc.stdout
-        except Exception:
-            return ""
-
-    # SDK-relevant diff summary
-    stat_out = _git_diff(["diff", "--stat", f"{from_v}..{to_v}", "--"] + _SDK_PATHS)
-    lines = stat_out.strip().splitlines()
-    result.sdk_summary = lines[-1] if lines else ""
-
-    # Per-category stats
-    categories = {
-        "IPC": ["src/debug/HyprCtl.cpp", "src/managers/EventManager.cpp",
-                 "src/managers/KeybindManager.cpp"],
-        "Protocols": ["protocols/", "src/protocols/"],
-        "Plugin API": ["src/plugins/PluginAPI.hpp", "src/plugins/HookSystem.hpp",
-                        "src/plugins/PluginSystem.hpp", "src/managers/HookSystemManager.hpp"],
-        "Types": ["src/desktop/", "src/helpers/Monitor.hpp"],
-        "Config": ["src/config/ConfigManager.hpp", "src/config/ConfigValue.hpp"],
-    }
-    for cat_name, paths in categories.items():
-        out = _git_diff(["diff", "--stat", f"{from_v}..{to_v}", "--"] + paths)
-        cat_lines = out.strip().splitlines()
-        if cat_lines:
-            result.category_stats[cat_name] = cat_lines[-1].strip()
+        ]
+        stat = _format_diff_summary(cat_files)
+        if stat:
+            result.category_stats[cat_name] = stat
 
     if progress_cb:
         progress_cb("Checking IPC changes...")
 
-    # New/removed IPC commands
-    diff_hyprctl = _git_diff(["diff", f"{from_v}..{to_v}", "--", "src/debug/HyprCtl.cpp"])
-    for line in diff_hyprctl.splitlines():
-        if line.startswith("+") and "registerCommand" in line and not line.startswith("+++"):
-            result.new_commands.append(line[1:].strip())
-        elif line.startswith("-") and "registerCommand" in line and not line.startswith("---"):
-            result.removed_commands.append(line[1:].strip())
+    for f in files:
+        if not isinstance(f, dict):
+            continue
+        path = str(f.get("filename", ""))
+        patch = str(f.get("patch", "") or "")
 
-    # New/removed events
-    diff_events = _git_diff(["diff", f"{from_v}..{to_v}", "--", "src/managers/EventManager.cpp"])
-    for line in diff_events.splitlines():
-        if line.startswith("+") and "postEvent" in line and not line.startswith("+++"):
-            result.new_events.append(line[1:].strip())
-        elif line.startswith("-") and "postEvent" in line and not line.startswith("---"):
-            result.removed_events.append(line[1:].strip())
+        if path.startswith("protocols/") and path.endswith(".xml"):
+            result.changed_protocols.append(path)
 
-    # New/removed hooks
-    diff_hooks = _git_diff(["diff", f"{from_v}..{to_v}", "--", "src/managers/HookSystemManager.hpp"])
-    for line in diff_hooks.splitlines():
-        if line.startswith("+") and ("EMIT_HOOK_EVENT" in line or "HOOK_" in line) and not line.startswith("+++"):
-            result.new_hooks.append(line[1:].strip())
-        elif line.startswith("-") and ("EMIT_HOOK_EVENT" in line or "HOOK_" in line) and not line.startswith("---"):
-            result.removed_hooks.append(line[1:].strip())
+        if not patch:
+            continue
 
-    # Changed protocol XMLs
-    xml_out = _git_diff(["diff", "--name-only", f"{from_v}..{to_v}", "--", "protocols/*.xml"])
-    result.changed_protocols = [l.strip() for l in xml_out.splitlines() if l.strip()]
+        if path == "src/debug/HyprCtl.cpp":
+            add, rem = _extract_patch_changes(
+                patch,
+                lambda line: "registerCommand" in line,
+            )
+            result.new_commands.extend(add)
+            result.removed_commands.extend(rem)
 
-    # Plugin API changes
-    diff_api = _git_diff(["diff", f"{from_v}..{to_v}", "--", "src/plugins/PluginAPI.hpp"])
-    for line in diff_api.splitlines():
-        if re.match(r"^[+-].*(inline|namespace HyprlandAPI)", line) and not line.startswith("+++") and not line.startswith("---"):
-            result.api_changes.append(line.strip())
+        if path == "src/managers/EventManager.cpp":
+            add, rem = _extract_patch_changes(
+                patch,
+                lambda line: "postEvent" in line,
+            )
+            result.new_events.extend(add)
+            result.removed_events.extend(rem)
+
+        if path == "src/managers/HookSystemManager.hpp":
+            add, rem = _extract_patch_changes(
+                patch,
+                lambda line: ("EMIT_HOOK_EVENT" in line or "HOOK_" in line),
+            )
+            result.new_hooks.extend(add)
+            result.removed_hooks.extend(rem)
+
+        if path == "src/plugins/PluginAPI.hpp":
+            for raw in patch.splitlines():
+                if raw.startswith(("+++", "---")):
+                    continue
+                if raw.startswith(("+", "-")) and re.search(
+                    r"(inline|namespace HyprlandAPI)",
+                    raw,
+                ):
+                    result.api_changes.append(raw.strip())
+
+    result.changed_protocols = _dedupe(result.changed_protocols)
+    result.new_commands = _dedupe(result.new_commands)
+    result.removed_commands = _dedupe(result.removed_commands)
+    result.new_events = _dedupe(result.new_events)
+    result.removed_events = _dedupe(result.removed_events)
+    result.new_hooks = _dedupe(result.new_hooks)
+    result.removed_hooks = _dedupe(result.removed_hooks)
+    result.api_changes = _dedupe(result.api_changes)
 
     return result
 

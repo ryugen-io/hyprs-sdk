@@ -428,7 +428,7 @@ class HyprTui(App):
             with TabPane("Update [bold dim]u[/]", id="tab-update"):
                 with Vertical(id="update-layout"):
                     yield Static(
-                        "[dim]Press [bold]u[/bold] to check Hyprland source for updates[/dim]",
+                        "[dim]Press [bold]u[/bold] to check Hyprland upstream for updates[/dim]",
                         id="update-header",
                     )
                     yield RichLog(id="update-details", markup=True)
@@ -758,6 +758,23 @@ class HyprTui(App):
             card.set_value(u.current_version, "pass")
             return
 
+        if not u.sdk_update_needed:
+            header.content = (
+                f"[green bold]\u2714 No SDK update needed[/green bold]\n"
+                f"[dim]Upstream {u.current_version} \u2192 {u.latest_version}, "
+                f"no SDK-relevant file changes.[/dim]"
+            )
+            header.add_class("update-current")
+            card.set_value(
+                f"{u.current_version}\u2192{u.latest_version} (no sdk impact)",
+                "pass",
+            )
+            log.write(
+                "[dim]Upstream changed, but no SDK-relevant paths were modified.[/dim]"
+            )
+            log.write("")
+            return
+
         header.content = (
             f"[yellow bold]\u26a0 Update available[/yellow bold]\n"
             f"{u.current_version} [bold]\u2192[/bold] {u.latest_version}"
@@ -834,8 +851,10 @@ class HyprTui(App):
 
         log.write("")
         log.write(
-            f"[dim]Run [bold]./scripts/update-sources.sh {u.latest_version}[/bold]"
-            f" to update[/dim]"
+            f"[dim]Set baseline to [bold]{u.latest_version}[/bold] "
+            f"(e.g. update [bold].sources/.version[/bold], or run "
+            f"[bold]./scripts/update-sources.sh {u.latest_version}[/bold] "
+            f"if you keep a local source mirror).[/dim]"
         )
 
     # ── Test table ────────────────────────────────────────────
