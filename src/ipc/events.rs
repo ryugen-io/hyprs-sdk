@@ -229,6 +229,159 @@ pub enum Event {
     },
 }
 
+impl Event {
+    /// Canonical Socket2 event name.
+    #[must_use]
+    pub fn wire_name(&self) -> &str {
+        match self {
+            Self::Workspace { .. } => "workspace",
+            Self::WorkspaceV2 { .. } => "workspacev2",
+            Self::CreateWorkspace { .. } => "createworkspace",
+            Self::CreateWorkspaceV2 { .. } => "createworkspacev2",
+            Self::DestroyWorkspace { .. } => "destroyworkspace",
+            Self::DestroyWorkspaceV2 { .. } => "destroyworkspacev2",
+            Self::MoveWorkspace { .. } => "moveworkspace",
+            Self::MoveWorkspaceV2 { .. } => "moveworkspacev2",
+            Self::RenameWorkspace { .. } => "renameworkspace",
+            Self::FocusedMon { .. } => "focusedmon",
+            Self::FocusedMonV2 { .. } => "focusedmonv2",
+            Self::MonitorAdded { .. } => "monitoradded",
+            Self::MonitorAddedV2 { .. } => "monitoraddedv2",
+            Self::MonitorRemoved { .. } => "monitorremoved",
+            Self::MonitorRemovedV2 { .. } => "monitorremovedv2",
+            Self::ActiveSpecial { .. } => "activespecial",
+            Self::ActiveSpecialV2 { .. } => "activespecialv2",
+            Self::ActiveWindow { .. } => "activewindow",
+            Self::ActiveWindowV2 { .. } => "activewindowv2",
+            Self::OpenWindow { .. } => "openwindow",
+            Self::CloseWindow { .. } => "closewindow",
+            Self::WindowTitle { .. } => "windowtitle",
+            Self::WindowTitleV2 { .. } => "windowtitlev2",
+            Self::MoveWindow { .. } => "movewindow",
+            Self::MoveWindowV2 { .. } => "movewindowv2",
+            Self::Fullscreen { .. } => "fullscreen",
+            Self::ChangeFloatingMode { .. } => "changefloatingmode",
+            Self::Urgent { .. } => "urgent",
+            Self::Minimized { .. } => "minimized",
+            Self::Pin { .. } => "pin",
+            Self::ToggleGroup { .. } => "togglegroup",
+            Self::LockGroups { .. } => "lockgroups",
+            Self::MoveIntoGroup { .. } => "moveintogroup",
+            Self::MoveOutOfGroup { .. } => "moveoutofgroup",
+            Self::IgnoreGroupLock { .. } => "ignoregrouplock",
+            Self::OpenLayer { .. } => "openlayer",
+            Self::CloseLayer { .. } => "closelayer",
+            Self::ActiveLayout { .. } => "activelayout",
+            Self::Submap { .. } => "submap",
+            Self::Bell { .. } => "bell",
+            Self::Screencast { .. } => "screencast",
+            Self::ConfigReloaded => "configreloaded",
+            Self::Custom { .. } => "custom",
+            Self::Unknown { name, .. } => name.as_str(),
+        }
+    }
+
+    /// Socket2 data payload for this event.
+    #[must_use]
+    pub fn wire_data(&self) -> String {
+        match self {
+            Self::Workspace { name }
+            | Self::CreateWorkspace { name }
+            | Self::DestroyWorkspace { name }
+            | Self::MonitorAdded { name }
+            | Self::MonitorRemoved { name }
+            | Self::OpenLayer { namespace: name }
+            | Self::CloseLayer { namespace: name }
+            | Self::Submap { name } => name.clone(),
+            Self::WorkspaceV2 { id, name }
+            | Self::CreateWorkspaceV2 { id, name }
+            | Self::DestroyWorkspaceV2 { id, name } => format!("{id},{name}"),
+            Self::MoveWorkspace { name, monitor } => format!("{name},{monitor}"),
+            Self::MoveWorkspaceV2 { id, name, monitor } => format!("{id},{name},{monitor}"),
+            Self::RenameWorkspace { id, new_name } => format!("{id},{new_name}"),
+            Self::FocusedMon { monitor, workspace } => format!("{monitor},{workspace}"),
+            Self::FocusedMonV2 {
+                monitor,
+                workspace_id,
+            } => format!("{monitor},{workspace_id}"),
+            Self::MonitorAddedV2 {
+                id,
+                name,
+                description,
+            }
+            | Self::MonitorRemovedV2 {
+                id,
+                name,
+                description,
+            } => format!("{id},{name},{description}"),
+            Self::ActiveSpecial { name, monitor } => format!("{name},{monitor}"),
+            Self::ActiveSpecialV2 { id, name, monitor } => format!("{id},{name},{monitor}"),
+            Self::ActiveWindow { class, title } => format!("{class},{title}"),
+            Self::ActiveWindowV2 { address }
+            | Self::CloseWindow { address }
+            | Self::WindowTitle { address }
+            | Self::Urgent { address }
+            | Self::MoveIntoGroup { address }
+            | Self::MoveOutOfGroup { address } => format_addr(*address),
+            Self::OpenWindow {
+                address,
+                workspace,
+                class,
+                title,
+            } => format!("{},{workspace},{class},{title}", format_addr(*address)),
+            Self::WindowTitleV2 { address, title } => {
+                format!("{},{}", format_addr(*address), title)
+            }
+            Self::MoveWindow { address, workspace } => {
+                format!("{},{}", format_addr(*address), workspace)
+            }
+            Self::MoveWindowV2 {
+                address,
+                workspace_id,
+                workspace_name,
+            } => format!("{},{workspace_id},{workspace_name}", format_addr(*address)),
+            Self::Fullscreen { enabled } => bool_as_int(*enabled).to_string(),
+            Self::ChangeFloatingMode { address, is_tiled } => {
+                format!("{},{}", format_addr(*address), bool_as_int(*is_tiled))
+            }
+            Self::Minimized { address, minimized } => {
+                format!("{},{}", format_addr(*address), bool_as_int(*minimized))
+            }
+            Self::Pin { address, pinned } => {
+                format!("{},{}", format_addr(*address), bool_as_int(*pinned))
+            }
+            Self::ToggleGroup { state, addresses } => {
+                let mut data = bool_as_int(*state).to_string();
+                if !addresses.is_empty() {
+                    data.push(',');
+                    data.push_str(
+                        &addresses
+                            .iter()
+                            .map(|a| format_addr(*a))
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    );
+                }
+                data
+            }
+            Self::LockGroups { locked } => bool_as_int(*locked).to_string(),
+            Self::IgnoreGroupLock { enabled } => bool_as_int(*enabled).to_string(),
+            Self::ActiveLayout { keyboard, layout } => format!("{keyboard},{layout}"),
+            Self::Bell { address } => address.clone(),
+            Self::Screencast { active, owner } => format!("{},{}", bool_as_int(*active), owner),
+            Self::ConfigReloaded => String::new(),
+            Self::Custom { data } => data.clone(),
+            Self::Unknown { data, .. } => data.clone(),
+        }
+    }
+
+    /// Full Socket2 wire line (`name>>data`).
+    #[must_use]
+    pub fn to_wire_line(&self) -> String {
+        format!("{}>>{}", self.wire_name(), self.wire_data())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Parsing
 // ---------------------------------------------------------------------------
@@ -543,6 +696,14 @@ impl EventStream {
 
 fn split2(s: &str) -> (&str, &str) {
     s.split_once(',').unwrap_or((s, ""))
+}
+
+const fn bool_as_int(value: bool) -> u8 {
+    if value { 1 } else { 0 }
+}
+
+fn format_addr(addr: WindowAddress) -> String {
+    format!("{:x}", addr.0)
 }
 
 fn parse_addr(s: &str) -> WindowAddress {

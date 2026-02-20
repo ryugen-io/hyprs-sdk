@@ -510,3 +510,24 @@ fn parse_bell() {
         }
     );
 }
+
+#[test]
+fn wire_helpers_open_window() {
+    let ev = parse_event("openwindow>>abcdef,2,kitty,Terminal").unwrap();
+    assert_eq!(ev.wire_name(), "openwindow");
+    assert_eq!(ev.wire_data(), "abcdef,2,kitty,Terminal");
+    assert_eq!(ev.to_wire_line(), "openwindow>>abcdef,2,kitty,Terminal");
+}
+
+#[test]
+fn wire_helpers_boolean_and_unknown_events() {
+    let fullscreen = parse_event("fullscreen>>1").unwrap();
+    assert_eq!(fullscreen.wire_name(), "fullscreen");
+    assert_eq!(fullscreen.wire_data(), "1");
+    assert_eq!(fullscreen.to_wire_line(), "fullscreen>>1");
+
+    let unknown = parse_event("futurevent>>some data").unwrap();
+    assert_eq!(unknown.wire_name(), "futurevent");
+    assert_eq!(unknown.wire_data(), "some data");
+    assert_eq!(unknown.to_wire_line(), "futurevent>>some data");
+}
