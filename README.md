@@ -106,6 +106,37 @@ Scan `$XDG_RUNTIME_DIR/hypr/` for running Hyprland instances, validate PIDs, res
 - Rust nightly (edition 2024)
 - A running Hyprland instance (for IPC)
 
+## Quality Gates
+
+Comprehensive local quality run:
+
+```bash
+cargo test --all-targets
+cargo test --features wayland,blocking
+cargo test --features plugin-ffi
+cargo bench --no-run
+```
+
+Run benchmarks:
+
+```bash
+cargo bench --bench event_parsing
+cargo bench --bench json_deser
+cargo bench --bench command_building
+cargo bench --bench dispatch_building
+```
+
+Run fuzz targets (requires `cargo-fuzz`):
+
+```bash
+cargo install cargo-fuzz
+cd fuzz
+cargo fuzz run fuzz_event_parse -- -max_total_time=30
+cargo fuzz run fuzz_json_responses -- -max_total_time=30
+cargo fuzz run fuzz_window_address -- -max_total_time=30
+cargo fuzz run fuzz_command_building -- -max_total_time=30
+```
+
 ## License
 
 MIT

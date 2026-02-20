@@ -190,3 +190,29 @@ fn decorations_with_flags() {
         "j/decorations 0xabc"
     );
 }
+
+#[test]
+fn remaining_query_commands_with_json_flag() {
+    let cases: &[(fn(Flags) -> String, &str)] = &[
+        (commands::workspaces, "workspaces"),
+        (commands::workspace_rules, "workspacerules"),
+        (commands::active_workspace, "activeworkspace"),
+        (commands::active_window, "activewindow"),
+        (commands::layers, "layers"),
+        (commands::version, "version"),
+        (commands::devices, "devices"),
+        (commands::cursor_pos, "cursorpos"),
+        (commands::binds, "binds"),
+        (commands::global_shortcuts, "globalshortcuts"),
+        (commands::animations, "animations"),
+        (commands::rolling_log, "rollinglog"),
+        (commands::layouts, "layouts"),
+        (commands::config_errors, "configerrors"),
+        (commands::locked, "locked"),
+        (commands::descriptions, "descriptions"),
+    ];
+
+    for (builder, name) in cases {
+        assert_eq!(builder(Flags::json()), format!("j/{name}"));
+    }
+}

@@ -347,3 +347,166 @@ fn parse_empty_active_window() {
         }
     );
 }
+
+#[test]
+fn parse_create_workspace_v2() {
+    let ev = parse_event("createworkspacev2>>7,scratch").unwrap();
+    assert_eq!(
+        ev,
+        Event::CreateWorkspaceV2 {
+            id: WorkspaceId(7),
+            name: "scratch".into()
+        }
+    );
+}
+
+#[test]
+fn parse_destroy_workspace() {
+    let ev = parse_event("destroyworkspace>>old").unwrap();
+    assert_eq!(ev, Event::DestroyWorkspace { name: "old".into() });
+}
+
+#[test]
+fn parse_focused_mon_v2() {
+    let ev = parse_event("focusedmonv2>>DP-3,9").unwrap();
+    assert_eq!(
+        ev,
+        Event::FocusedMonV2 {
+            monitor: "DP-3".into(),
+            workspace_id: WorkspaceId(9)
+        }
+    );
+}
+
+#[test]
+fn parse_monitor_removed() {
+    let ev = parse_event("monitorremoved>>HDMI-A-2").unwrap();
+    assert_eq!(
+        ev,
+        Event::MonitorRemoved {
+            name: "HDMI-A-2".into()
+        }
+    );
+}
+
+#[test]
+fn parse_monitor_removed_v2() {
+    let ev = parse_event("monitorremovedv2>>3,DP-3,LG ULTRAGEAR").unwrap();
+    assert_eq!(
+        ev,
+        Event::MonitorRemovedV2 {
+            id: "3".into(),
+            name: "DP-3".into(),
+            description: "LG ULTRAGEAR".into()
+        }
+    );
+}
+
+#[test]
+fn parse_active_special() {
+    let ev = parse_event("activespecial>>scratch,DP-1").unwrap();
+    assert_eq!(
+        ev,
+        Event::ActiveSpecial {
+            name: "scratch".into(),
+            monitor: "DP-1".into()
+        }
+    );
+}
+
+#[test]
+fn parse_active_special_v2() {
+    let ev = parse_event("activespecialv2>>-99,scratch,DP-1").unwrap();
+    assert_eq!(
+        ev,
+        Event::ActiveSpecialV2 {
+            id: "-99".into(),
+            name: "scratch".into(),
+            monitor: "DP-1".into()
+        }
+    );
+}
+
+#[test]
+fn parse_window_title_v1() {
+    let ev = parse_event("windowtitle>>55a3f2c0").unwrap();
+    assert_eq!(
+        ev,
+        Event::WindowTitle {
+            address: WindowAddress(0x55a3f2c0)
+        }
+    );
+}
+
+#[test]
+fn parse_move_window_v1() {
+    let ev = parse_event("movewindow>>55a3f2c0,4").unwrap();
+    assert_eq!(
+        ev,
+        Event::MoveWindow {
+            address: WindowAddress(0x55a3f2c0),
+            workspace: "4".into()
+        }
+    );
+}
+
+#[test]
+fn parse_urgent() {
+    let ev = parse_event("urgent>>55a3f2c0").unwrap();
+    assert_eq!(
+        ev,
+        Event::Urgent {
+            address: WindowAddress(0x55a3f2c0)
+        }
+    );
+}
+
+#[test]
+fn parse_move_into_group() {
+    let ev = parse_event("moveintogroup>>55a3f2c0").unwrap();
+    assert_eq!(
+        ev,
+        Event::MoveIntoGroup {
+            address: WindowAddress(0x55a3f2c0)
+        }
+    );
+}
+
+#[test]
+fn parse_move_out_of_group() {
+    let ev = parse_event("moveoutofgroup>>55a3f2c0").unwrap();
+    assert_eq!(
+        ev,
+        Event::MoveOutOfGroup {
+            address: WindowAddress(0x55a3f2c0)
+        }
+    );
+}
+
+#[test]
+fn parse_ignore_group_lock() {
+    let ev = parse_event("ignoregrouplock>>1").unwrap();
+    assert_eq!(ev, Event::IgnoreGroupLock { enabled: true });
+}
+
+#[test]
+fn parse_close_layer() {
+    let ev = parse_event("closelayer>>waybar").unwrap();
+    assert_eq!(
+        ev,
+        Event::CloseLayer {
+            namespace: "waybar".into()
+        }
+    );
+}
+
+#[test]
+fn parse_bell() {
+    let ev = parse_event("bell>>0x55a3f2c0").unwrap();
+    assert_eq!(
+        ev,
+        Event::Bell {
+            address: "0x55a3f2c0".into()
+        }
+    );
+}

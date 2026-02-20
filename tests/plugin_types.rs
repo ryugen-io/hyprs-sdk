@@ -103,6 +103,7 @@ fn input_type_from_raw() {
 #[test]
 fn api_version_constant() {
     assert_eq!(HYPRLAND_API_VERSION, "0.1");
+    assert_eq!(HYPRLAND_API_VERSION_CSTR, b"0.1\0");
 }
 
 #[test]

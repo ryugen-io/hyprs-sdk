@@ -280,6 +280,9 @@ impl InputType {
 /// match what Hyprland expects, the plugin will be ejected.
 pub const HYPRLAND_API_VERSION: &str = "0.1";
 
+/// NUL-terminated API version bytes for C ABI entry points.
+pub const HYPRLAND_API_VERSION_CSTR: &[u8] = b"0.1\0";
+
 /// Function match result from `findFunctionsByName`.
 ///
 /// Maps to `SFunctionMatch` in C++.

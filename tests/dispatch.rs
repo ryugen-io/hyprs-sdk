@@ -362,3 +362,166 @@ fn force_idle() {
     let cmd = misc::force_idle("5000");
     assert_eq!(cmd.name, "forceidle");
 }
+
+// -- coverage gaps ------------------------------------------------------------
+
+#[test]
+fn force_kill_active() {
+    let cmd = window::force_kill_active();
+    assert_eq!(cmd.name, "forcekillactive");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn kill_window() {
+    let cmd = window::kill_window("class:steam");
+    assert_eq!(cmd.name, "killwindow");
+    assert_eq!(cmd.args, "class:steam");
+}
+
+#[test]
+fn signal() {
+    let cmd = window::signal(15);
+    assert_eq!(cmd.name, "signal");
+    assert_eq!(cmd.args, "15");
+}
+
+#[test]
+fn set_floating() {
+    let cmd = window::set_floating("class:kitty");
+    assert_eq!(cmd.name, "setfloating");
+    assert_eq!(cmd.args, "class:kitty");
+}
+
+#[test]
+fn set_tiled() {
+    let cmd = window::set_tiled("class:kitty");
+    assert_eq!(cmd.name, "settiled");
+    assert_eq!(cmd.args, "class:kitty");
+}
+
+#[test]
+fn toggle_swallow() {
+    let cmd = window::toggle_swallow();
+    assert_eq!(cmd.name, "toggleswallow");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn bring_active_to_top() {
+    let cmd = window::bring_active_to_top();
+    assert_eq!(cmd.name, "bringactivetotop");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn center_window() {
+    let cmd = window::center_window();
+    assert_eq!(cmd.name, "centerwindow");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn focus_window_by_class() {
+    let cmd = focus::focus_window_by_class("class:firefox");
+    assert_eq!(cmd.name, "focuswindowbyclass");
+    assert_eq!(cmd.args, "class:firefox");
+}
+
+#[test]
+fn focus_current_or_last() {
+    let cmd = focus::focus_current_or_last();
+    assert_eq!(cmd.name, "focuscurrentorlast");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn swap_next() {
+    let cmd = movement::swap_next("prev");
+    assert_eq!(cmd.name, "swapnext");
+    assert_eq!(cmd.args, "prev");
+}
+
+#[test]
+fn move_window_pixel() {
+    let cmd = movement::move_window_pixel("10", "20", "class:kitty");
+    assert_eq!(cmd.name, "movewindowpixel");
+    assert_eq!(cmd.args, "10 20,class:kitty");
+}
+
+#[test]
+fn resize_window_pixel() {
+    let cmd = movement::resize_window_pixel("1920", "1080", "address:0xdead");
+    assert_eq!(cmd.name, "resizewindowpixel");
+    assert_eq!(cmd.args, "1920 1080,address:0xdead");
+}
+
+#[test]
+fn move_to_workspace_window() {
+    let cmd = movement::move_to_workspace_window("3", "class:kitty");
+    assert_eq!(cmd.name, "movetoworkspace");
+    assert_eq!(cmd.args, "3,class:kitty");
+}
+
+#[test]
+fn workspace_opt() {
+    let cmd = workspace::workspace_opt("allfloat");
+    assert_eq!(cmd.name, "workspaceopt");
+    assert_eq!(cmd.args, "allfloat");
+}
+
+#[test]
+fn focus_on_current_monitor() {
+    let cmd = workspace::focus_on_current_monitor("4");
+    assert_eq!(cmd.name, "focusworkspaceoncurrentmonitor");
+    assert_eq!(cmd.args, "4");
+}
+
+#[test]
+fn group_move_window() {
+    let cmd = group::move_window("b");
+    assert_eq!(cmd.name, "movegroupwindow");
+    assert_eq!(cmd.args, "b");
+}
+
+#[test]
+fn lock_active_group() {
+    let cmd = group::lock_active_group(ToggleState::Off);
+    assert_eq!(cmd.name, "lockactivegroup");
+    assert_eq!(cmd.args, "off");
+}
+
+#[test]
+fn move_out_of_group() {
+    let cmd = group::move_out_of_group("class:kitty");
+    assert_eq!(cmd.name, "moveoutofgroup");
+    assert_eq!(cmd.args, "class:kitty");
+}
+
+#[test]
+fn set_ignore_group_lock() {
+    let cmd = group::set_ignore_group_lock(ToggleState::Toggle);
+    assert_eq!(cmd.name, "setignoregrouplock");
+    assert_eq!(cmd.args, "toggle");
+}
+
+#[test]
+fn swap_split() {
+    let cmd = layout::swap_split();
+    assert_eq!(cmd.name, "swapsplit");
+    assert!(cmd.args.is_empty());
+}
+
+#[test]
+fn mouse() {
+    let cmd = input::mouse("1movewindow");
+    assert_eq!(cmd.name, "mouse");
+    assert_eq!(cmd.args, "1movewindow");
+}
+
+#[test]
+fn send_key_state() {
+    let cmd = input::send_key_state("CTRL", "k", "repeat", "class:kitty");
+    assert_eq!(cmd.name, "sendkeystate");
+    assert_eq!(cmd.args, "CTRL k repeat class:kitty");
+}

@@ -41,3 +41,7 @@ harness = false
 [[bench]]
 name = "command_building"
 harness = false
+
+[[bench]]
+name = "dispatch_building"
+harness = false
