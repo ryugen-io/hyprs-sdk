@@ -16,7 +16,7 @@ fn test_init(_handle: PluginHandle) -> Result<PluginDescription, String> {
     }
 
     Ok(PluginDescription {
-        name: "hlrsgw-test".into(),
+        name: "hypr-sdk-test".into(),
         description: "lifecycle macro smoke".into(),
         author: "qa".into(),
         version: "0.1.0".into(),
@@ -65,7 +65,7 @@ fn lifecycle_success_flow_exposes_description_and_clears_on_exit() {
             &mut version_len,
         ));
 
-        assert_eq!(read_bytes(name_ptr, name_len), "hlrsgw-test");
+        assert_eq!(read_bytes(name_ptr, name_len), "hypr-sdk-test");
         assert_eq!(read_bytes(desc_ptr, desc_len), "lifecycle macro smoke");
         assert_eq!(read_bytes(author_ptr, author_len), "qa");
         assert_eq!(read_bytes(version_ptr, version_len), "0.1.0");

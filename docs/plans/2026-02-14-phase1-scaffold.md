@@ -19,7 +19,7 @@
 
 **Step 1: Initialize git repo**
 
-Run: `cd /code/git/ryugen-io/projects/hyprland/rs-libs/hlrsgw && git init`
+Run: `cd /code/git/ryugen-io/projects/rust/hyprland-rs/hypr-sdk && git init`
 
 **Step 2: Create rust-toolchain.toml**
 

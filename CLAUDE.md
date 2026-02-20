@@ -1,6 +1,6 @@
-# hlrsgw -- Hyprland Rust SDK / Gateway
+# hypr-sdk -- Hyprland Rust SDK / Gateway
 
-Rust SDK wrapping the full Hyprland API: IPC, Wayland protocols, plugin FFI, config, desktop types, hooks. Reference source: `.sources/Hyprland/` (read-only, v0.53.0). Always verify against the C++ source -- do not guess.
+Rust SDK wrapping the full Hyprland API: IPC, Wayland protocols, plugin FFI, config, desktop types, hooks. Reference source: `~/code/git/foreign/Hyprland/` (read-only, v0.53.0). Always verify against the C++ source -- do not guess.
 
 ## What to build
 
@@ -8,7 +8,7 @@ Rust SDK wrapping the full Hyprland API: IPC, Wayland protocols, plugin FFI, con
 
 Wrap both Unix domain sockets for external process communication with a running Hyprland instance.
 
-**Socket1** (`.socket.sock`) -- request/response commands and queries. Reference: `.sources/Hyprland/src/debug/HyprCtl.cpp` for all command handlers and JSON response formats, `.sources/Hyprland/hyprctl/src/main.cpp` for the client-side wire protocol.
+**Socket1** (`.socket.sock`) -- request/response commands and queries. Reference: `~/code/git/foreign/Hyprland/src/debug/HyprCtl.cpp` for all command handlers and JSON response formats, `~/code/git/foreign/Hyprland/hyprctl/src/main.cpp` for the client-side wire protocol.
 
 - Connect, write command, read response, close. One connection per request.
 - Flag chars before `/` separator: `j` = JSON, `r` = reload, `a` = all, `c` = config. Space before `/` stops flag parsing.
@@ -17,7 +17,7 @@ Wrap both Unix domain sockets for external process communication with a running 
 - Cover every dispatcher -- grep `m_dispatchers["` in `src/managers/KeybindManager.cpp`.
 - Typed builders for commands, serde deserialization for JSON responses. No raw string APIs exposed to users.
 
-**Socket2** (`.socket2.sock`) -- persistent event stream. Reference: `.sources/Hyprland/src/managers/EventManager.cpp`.
+**Socket2** (`.socket2.sock`) -- persistent event stream. Reference: `~/code/git/foreign/Hyprland/src/managers/EventManager.cpp`.
 
 - Events arrive as `EVENTNAME>>DATA\n`. Data truncated to 1024 bytes, embedded newlines replaced with spaces.
 - Server drops clients that queue >64 undelivered events.
@@ -28,7 +28,7 @@ Wrap both Unix domain sockets for external process communication with a running 
 
 ### 2. Wayland Protocol Client Bindings
 
-Hyprland implements 58 protocol handlers. Reference: `.sources/Hyprland/src/protocols/` for server-side implementations, `.sources/Hyprland/protocols/*.xml` for protocol XML definitions.
+Hyprland implements 58 protocol handlers. Reference: `~/code/git/foreign/Hyprland/src/protocols/` for server-side implementations, `~/code/git/foreign/Hyprland/protocols/*.xml` for protocol XML definitions.
 
 Build client-side Rust bindings for the protocols that are usable from external Wayland clients. Use `wayland-client` and `wayland-protocols` crates where standard protocol bindings exist. For Hyprland-specific protocols, generate bindings from the XML files.
 
@@ -59,7 +59,7 @@ Don't try to bind all 58 at once. Provide the infrastructure (protocol generatio
 
 ### 3. Plugin FFI (Writing Hyprland Plugins in Rust)
 
-Provide safe Rust bindings for writing Hyprland plugins that get loaded as shared libraries into the compositor. Reference: `.sources/Hyprland/src/plugins/PluginAPI.hpp`, `HookSystem.hpp`, `PluginSystem.hpp`.
+Provide safe Rust bindings for writing Hyprland plugins that get loaded as shared libraries into the compositor. Reference: `~/code/git/foreign/Hyprland/src/plugins/PluginAPI.hpp`, `HookSystem.hpp`, `PluginSystem.hpp`.
 
 The C++ plugin API uses `extern "C"` functions in the `HyprlandAPI` namespace. Model:
 
@@ -80,7 +80,7 @@ Provide a `#[hyprland_plugin]` proc-macro or a safe registration macro that gene
 
 ### 4. Desktop Object Types
 
-Model Hyprland's internal desktop objects as Rust types. Reference: `.sources/Hyprland/src/desktop/`.
+Model Hyprland's internal desktop objects as Rust types. Reference: `~/code/git/foreign/Hyprland/src/desktop/`.
 
 - **Window** (CWindow / PHLWINDOW) -- position, size, class, title, workspace, monitor, fullscreen state, floating, pinned, grouped, tags, decorations. Read `src/desktop/view/Window.hpp`.
 - **Workspace** (CWorkspace / PHLWORKSPACE) -- id, name, monitor, fullscreen mode, special workspace flag, visibility. Read `src/desktop/Workspace.hpp`.
@@ -92,7 +92,7 @@ These types serve dual purpose: deserialization targets for IPC JSON responses A
 
 ### 5. Config System Types
 
-Model Hyprland's configuration types. Reference: `.sources/Hyprland/src/config/ConfigManager.hpp`, `ConfigValue.hpp`.
+Model Hyprland's configuration types. Reference: `~/code/git/foreign/Hyprland/src/config/ConfigManager.hpp`, `ConfigValue.hpp`.
 
 - Config option types: `Bool`, `Int`, `Float`, `StringShort`, `StringLong`, `Color`, `Choice`, `Gradient`, `Vector`
 - Rule types: `SMonitorRule`, `SWorkspaceRule`, window rules, layer rules
@@ -102,7 +102,7 @@ This is primarily for the plugin FFI (plugins register and read config values) b
 
 ### 6. Hook Event Types
 
-Model all 48 hook events that plugins can subscribe to. Reference: `.sources/Hyprland/src/managers/HookSystemManager.hpp`, grep `EMIT_HOOK_EVENT` across the entire source.
+Model all 48 hook events that plugins can subscribe to. Reference: `~/code/git/foreign/Hyprland/src/managers/HookSystemManager.hpp`, grep `EMIT_HOOK_EVENT` across the entire source.
 
 Categories:
 - Workspace/monitor: `workspace`, `createWorkspace`, `destroyWorkspace`, `moveWorkspace`, `focusedMon`, `monitorAdded`, `monitorRemoved`, `monitorLayoutChanged`, etc.
@@ -194,7 +194,7 @@ Before considering any module complete:
 - Hardcode socket paths. Always resolve from env vars + instance discovery.
 - Skip APIs. If it exists in the Hyprland source, it gets a Rust binding.
 - Expose raw string command building. Typed APIs only.
-- Modify anything in `.sources/`.
+- Modify anything in the reference source (`~/code/git/foreign/Hyprland/`).
 - Look at or reference other projects in parent directories. This is standalone.
 - Add a binary/CLI. This is a library only.
 - Use `deny_unknown_fields` on serde types. Hyprland adds fields between versions -- ignore unknowns for forward compatibility.
