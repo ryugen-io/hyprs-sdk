@@ -505,4 +505,8 @@ unsafe extern "C" {
     /// Free an array allocated by the bridge (malloc'd).
     #[link_name = "hyprland_api_free_array"]
     pub fn free_bridge_array(ptr: *mut c_void);
+
+    /// No-op marker used to force-link lifecycle bridge symbols.
+    #[link_name = "hyprland_bridge_lifecycle_marker"]
+    pub fn lifecycle_bridge_marker();
 }

@@ -21,6 +21,8 @@ fn main() {
             "bridge_layout.cpp",
             "bridge_decoration.cpp",
             "bridge_misc.cpp",
+            "bridge_lifecycle.cpp",
+            "bridge_compat.cpp",
         ];
 
         let mut build = cc::Build::new();

@@ -37,6 +37,19 @@
 //! }
 //! ```
 
+#[doc(hidden)]
+#[inline]
+pub fn __ensure_lifecycle_bridge_linked() {
+    #[cfg(feature = "plugin-ffi")]
+    {
+        // SAFETY: This function is a no-op marker used solely to force the
+        // lifecycle bridge object file to be linked into plugin artifacts.
+        unsafe {
+            crate::plugin::ffi::lifecycle_bridge_marker();
+        }
+    }
+}
+
 /// Generate the plugin entry points that Hyprland resolves via `dlsym`.
 ///
 /// # Parameters
@@ -52,11 +65,14 @@
 ///
 /// # Generated Symbols
 ///
-/// - `pluginAPIVersion` — Returns `HYPRLAND_API_VERSION` ("0.1")
-/// - `pluginInit` — Calls your init function, stores the handle
-/// - `pluginExit` — Calls your exit function (if provided)
-/// - `__hyprland_api_get_client_hash` — Returns the ABI hash
-///   (must match the Hyprland build)
+/// - `hyprland_rs_plugin_api_version` — C-compatible API version accessor
+/// - `hyprland_rs_plugin_init` — Calls your init function and stores metadata
+/// - `hyprland_rs_plugin_get_description` — Returns init description fields
+/// - `hyprland_rs_plugin_get_error` — Returns init error text, if any
+/// - `hyprland_rs_plugin_exit` — Calls your exit function (if provided)
+///
+/// A C++ lifecycle bridge translates these shims to Hyprland's C++ ABI
+/// (`pluginAPIVersion`, `pluginInit`, `pluginExit`).
 #[macro_export]
 macro_rules! hyprland_plugin {
     (
@@ -77,61 +93,288 @@ macro_rules! hyprland_plugin {
 #[macro_export]
 macro_rules! _hyprland_plugin_impl {
     ($init_fn:path, $exit_fn:path) => {
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginAPIVersion() -> *const u8 {
-            concat!($crate::plugin::types::HYPRLAND_API_VERSION, "\0").as_ptr()
+        #[derive(Default)]
+        struct __HyprPluginLifecycleState {
+            description: Option<$crate::plugin::types::PluginDescription>,
+            error: Option<::std::ffi::CString>,
         }
 
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginInit(handle: *mut ::std::ffi::c_void) -> *const u8 {
-            static mut PLUGIN_HANDLE: $crate::plugin::types::PluginHandle =
-                $crate::plugin::types::PluginHandle::NULL;
+        static __HYPR_PLUGIN_LIFECYCLE_STATE: ::std::sync::Mutex<__HyprPluginLifecycleState> =
+            ::std::sync::Mutex::new(__HyprPluginLifecycleState {
+                description: None,
+                error: None,
+            });
 
-            // SAFETY: pluginInit is called once by Hyprland, single-threaded.
+        #[inline]
+        fn __set_out_bytes(
+            out_ptr: *mut *const ::std::os::raw::c_char,
+            out_len: *mut usize,
+            value: &[u8],
+        ) {
+            // SAFETY: The caller provides output pointers or null. We only
+            // write to non-null pointers.
             unsafe {
-                PLUGIN_HANDLE = $crate::plugin::types::PluginHandle(handle);
-            }
-
-            match $init_fn(unsafe { PLUGIN_HANDLE }) {
-                Ok(_desc) => {
-                    // The C++ bridge reads the PluginDescription from
-                    // a known location. Return success marker.
-                    ::std::ptr::null()
+                if !out_ptr.is_null() {
+                    *out_ptr = value.as_ptr().cast();
                 }
-                Err(_e) => {
-                    // Return non-null to signal error
-                    b"error\0".as_ptr()
+                if !out_len.is_null() {
+                    *out_len = value.len();
+                }
+            }
+        }
+
+        #[inline]
+        fn __set_out_none(out_ptr: *mut *const ::std::os::raw::c_char, out_len: *mut usize) {
+            // SAFETY: The caller provides output pointers or null. We only
+            // write to non-null pointers.
+            unsafe {
+                if !out_ptr.is_null() {
+                    *out_ptr = ::std::ptr::null();
+                }
+                if !out_len.is_null() {
+                    *out_len = 0;
                 }
             }
         }
 
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginExit() {
+        pub unsafe extern "C" fn hyprland_rs_plugin_api_version() -> *const ::std::os::raw::c_char {
+            $crate::plugin::lifecycle::__ensure_lifecycle_bridge_linked();
+            concat!($crate::plugin::types::HYPRLAND_API_VERSION, "\0")
+                .as_ptr()
+                .cast()
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_init(handle: *mut ::std::ffi::c_void) -> bool {
+            $crate::plugin::lifecycle::__ensure_lifecycle_bridge_linked();
+            let plugin_handle = $crate::plugin::types::PluginHandle(handle);
+            let mut state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            match $init_fn(plugin_handle) {
+                Ok(desc) => {
+                    state.description = Some(desc);
+                    state.error = None;
+                    true
+                }
+                Err(err) => {
+                    let cleaned = err.replace('\0', " ");
+                    let c_error = match ::std::ffi::CString::new(cleaned) {
+                        Ok(v) => v,
+                        Err(_) => ::std::ffi::CString::new("plugin init failed")
+                            .expect("static error string cannot contain NUL"),
+                    };
+                    state.description = None;
+                    state.error = Some(c_error);
+                    false
+                }
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_get_description(
+            out_name_ptr: *mut *const ::std::os::raw::c_char,
+            out_name_len: *mut usize,
+            out_description_ptr: *mut *const ::std::os::raw::c_char,
+            out_description_len: *mut usize,
+            out_author_ptr: *mut *const ::std::os::raw::c_char,
+            out_author_len: *mut usize,
+            out_version_ptr: *mut *const ::std::os::raw::c_char,
+            out_version_len: *mut usize,
+        ) -> bool {
+            let state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            if let Some(ref desc) = state.description {
+                __set_out_bytes(out_name_ptr, out_name_len, desc.name.as_bytes());
+                __set_out_bytes(
+                    out_description_ptr,
+                    out_description_len,
+                    desc.description.as_bytes(),
+                );
+                __set_out_bytes(out_author_ptr, out_author_len, desc.author.as_bytes());
+                __set_out_bytes(out_version_ptr, out_version_len, desc.version.as_bytes());
+                true
+            } else {
+                __set_out_none(out_name_ptr, out_name_len);
+                __set_out_none(out_description_ptr, out_description_len);
+                __set_out_none(out_author_ptr, out_author_len);
+                __set_out_none(out_version_ptr, out_version_len);
+                false
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_get_error(
+            out_error_ptr: *mut *const ::std::os::raw::c_char,
+            out_error_len: *mut usize,
+        ) -> bool {
+            let state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            if let Some(ref err) = state.error {
+                __set_out_bytes(out_error_ptr, out_error_len, err.as_bytes());
+                true
+            } else {
+                __set_out_none(out_error_ptr, out_error_len);
+                false
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_exit() {
             $exit_fn();
+            let mut state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+            state.description = None;
+            state.error = None;
         }
     };
     ($init_fn:path) => {
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginAPIVersion() -> *const u8 {
-            concat!($crate::plugin::types::HYPRLAND_API_VERSION, "\0").as_ptr()
+        #[derive(Default)]
+        struct __HyprPluginLifecycleState {
+            description: Option<$crate::plugin::types::PluginDescription>,
+            error: Option<::std::ffi::CString>,
         }
 
-        #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginInit(handle: *mut ::std::ffi::c_void) -> *const u8 {
-            static mut PLUGIN_HANDLE: $crate::plugin::types::PluginHandle =
-                $crate::plugin::types::PluginHandle::NULL;
+        static __HYPR_PLUGIN_LIFECYCLE_STATE: ::std::sync::Mutex<__HyprPluginLifecycleState> =
+            ::std::sync::Mutex::new(__HyprPluginLifecycleState {
+                description: None,
+                error: None,
+            });
 
+        #[inline]
+        fn __set_out_bytes(
+            out_ptr: *mut *const ::std::os::raw::c_char,
+            out_len: *mut usize,
+            value: &[u8],
+        ) {
+            // SAFETY: The caller provides output pointers or null. We only
+            // write to non-null pointers.
             unsafe {
-                PLUGIN_HANDLE = $crate::plugin::types::PluginHandle(handle);
+                if !out_ptr.is_null() {
+                    *out_ptr = value.as_ptr().cast();
+                }
+                if !out_len.is_null() {
+                    *out_len = value.len();
+                }
             }
+        }
 
-            match $init_fn(unsafe { PLUGIN_HANDLE }) {
-                Ok(_desc) => ::std::ptr::null(),
-                Err(_e) => b"error\0".as_ptr(),
+        #[inline]
+        fn __set_out_none(out_ptr: *mut *const ::std::os::raw::c_char, out_len: *mut usize) {
+            // SAFETY: The caller provides output pointers or null. We only
+            // write to non-null pointers.
+            unsafe {
+                if !out_ptr.is_null() {
+                    *out_ptr = ::std::ptr::null();
+                }
+                if !out_len.is_null() {
+                    *out_len = 0;
+                }
             }
         }
 
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn pluginExit() {}
+        pub unsafe extern "C" fn hyprland_rs_plugin_api_version() -> *const ::std::os::raw::c_char {
+            $crate::plugin::lifecycle::__ensure_lifecycle_bridge_linked();
+            concat!($crate::plugin::types::HYPRLAND_API_VERSION, "\0")
+                .as_ptr()
+                .cast()
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_init(handle: *mut ::std::ffi::c_void) -> bool {
+            $crate::plugin::lifecycle::__ensure_lifecycle_bridge_linked();
+            let plugin_handle = $crate::plugin::types::PluginHandle(handle);
+            let mut state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            match $init_fn(plugin_handle) {
+                Ok(desc) => {
+                    state.description = Some(desc);
+                    state.error = None;
+                    true
+                }
+                Err(err) => {
+                    let cleaned = err.replace('\0', " ");
+                    let c_error = match ::std::ffi::CString::new(cleaned) {
+                        Ok(v) => v,
+                        Err(_) => ::std::ffi::CString::new("plugin init failed")
+                            .expect("static error string cannot contain NUL"),
+                    };
+                    state.description = None;
+                    state.error = Some(c_error);
+                    false
+                }
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_get_description(
+            out_name_ptr: *mut *const ::std::os::raw::c_char,
+            out_name_len: *mut usize,
+            out_description_ptr: *mut *const ::std::os::raw::c_char,
+            out_description_len: *mut usize,
+            out_author_ptr: *mut *const ::std::os::raw::c_char,
+            out_author_len: *mut usize,
+            out_version_ptr: *mut *const ::std::os::raw::c_char,
+            out_version_len: *mut usize,
+        ) -> bool {
+            let state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            if let Some(ref desc) = state.description {
+                __set_out_bytes(out_name_ptr, out_name_len, desc.name.as_bytes());
+                __set_out_bytes(
+                    out_description_ptr,
+                    out_description_len,
+                    desc.description.as_bytes(),
+                );
+                __set_out_bytes(out_author_ptr, out_author_len, desc.author.as_bytes());
+                __set_out_bytes(out_version_ptr, out_version_len, desc.version.as_bytes());
+                true
+            } else {
+                __set_out_none(out_name_ptr, out_name_len);
+                __set_out_none(out_description_ptr, out_description_len);
+                __set_out_none(out_author_ptr, out_author_len);
+                __set_out_none(out_version_ptr, out_version_len);
+                false
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_get_error(
+            out_error_ptr: *mut *const ::std::os::raw::c_char,
+            out_error_len: *mut usize,
+        ) -> bool {
+            let state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+
+            if let Some(ref err) = state.error {
+                __set_out_bytes(out_error_ptr, out_error_len, err.as_bytes());
+                true
+            } else {
+                __set_out_none(out_error_ptr, out_error_len);
+                false
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn hyprland_rs_plugin_exit() {
+            let mut state = __HYPR_PLUGIN_LIFECYCLE_STATE
+                .lock()
+                .expect("plugin lifecycle state poisoned");
+            state.description = None;
+            state.error = None;
+        }
     };
 }

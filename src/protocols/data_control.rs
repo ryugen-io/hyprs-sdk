@@ -4,8 +4,9 @@
 //! and primary selection content via the `zwlr_data_control_manager_v1`
 //! protocol.
 
+use std::collections::HashMap;
 use std::fmt;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::fd::AsFd;
 use std::os::unix::net::UnixStream;
 
@@ -113,6 +114,7 @@ pub enum Selection {
 pub struct DataControlClient {
     state: DataControlState,
     event_queue: EventQueue<DataControlState>,
+    qh: QueueHandle<DataControlState>,
 }
 
 impl DataControlClient {
@@ -166,7 +168,11 @@ impl DataControlClient {
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        Ok(Self { state, event_queue })
+        Ok(Self {
+            state,
+            event_queue,
+            qh,
+        })
     }
 
     /// Get the current clipboard/selection offer (available MIME types).
@@ -189,7 +195,9 @@ impl DataControlClient {
     /// offered, or reading the data fails.
     pub fn read(&mut self, selection: Selection, mime_type: &str) -> HyprResult<Vec<u8>> {
         // Refresh to get latest state.
-        let Self { state, event_queue } = self;
+        let Self {
+            state, event_queue, ..
+        } = self;
         event_queue
             .roundtrip(state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -263,9 +271,162 @@ impl DataControlClient {
         }
     }
 
+    /// Write a single MIME payload to clipboard or primary selection.
+    ///
+    /// This replaces the current selection with a new source owned by this
+    /// client. The source remains alive until the compositor sends
+    /// `cancelled`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data device is unavailable, `mime_type` is
+    /// empty, or event dispatch fails.
+    pub fn write(&mut self, selection: Selection, mime_type: &str, data: &[u8]) -> HyprResult<()> {
+        if mime_type.is_empty() {
+            return Err(HyprError::WaylandDispatch(
+                "mime_type cannot be empty".into(),
+            ));
+        }
+
+        let Self {
+            state,
+            event_queue,
+            qh,
+        } = self;
+
+        let manager = state.manager.as_ref().ok_or_else(|| {
+            HyprError::ProtocolNotSupported("zwlr_data_control_manager_v1".into())
+        })?;
+        let device = state
+            .device
+            .as_ref()
+            .ok_or_else(|| HyprError::WaylandDispatch("no data device available".into()))?;
+
+        let source = manager.create_data_source(qh, ());
+        source.offer(mime_type.to_string());
+
+        let mut payloads = HashMap::new();
+        payloads.insert(mime_type.to_string(), data.to_vec());
+
+        match selection {
+            Selection::Clipboard => {
+                device.set_selection(Some(&source));
+                state.active_clipboard_source = Some(source.clone());
+            }
+            Selection::Primary => {
+                device.set_primary_selection(Some(&source));
+                state.active_primary_source = Some(source.clone());
+            }
+        }
+
+        state.sources.push(SourceEntry {
+            proxy: source,
+            payloads,
+        });
+
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Write text data to clipboard or primary selection.
+    ///
+    /// Offers common plain-text MIME variants for better interoperability
+    /// across toolkits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data device is unavailable or dispatch fails.
+    pub fn write_text(&mut self, selection: Selection, text: &str) -> HyprResult<()> {
+        let Self {
+            state,
+            event_queue,
+            qh,
+        } = self;
+
+        let manager = state.manager.as_ref().ok_or_else(|| {
+            HyprError::ProtocolNotSupported("zwlr_data_control_manager_v1".into())
+        })?;
+        let device = state
+            .device
+            .as_ref()
+            .ok_or_else(|| HyprError::WaylandDispatch("no data device available".into()))?;
+
+        let source = manager.create_data_source(qh, ());
+        let mut payloads = HashMap::new();
+        let bytes = text.as_bytes().to_vec();
+
+        for mime in [
+            MimeType::TEXT_PLAIN_UTF8,
+            MimeType::TEXT_PLAIN,
+            "UTF8_STRING",
+            "STRING",
+        ] {
+            source.offer(mime.to_string());
+            payloads.insert(mime.to_string(), bytes.clone());
+        }
+
+        match selection {
+            Selection::Clipboard => {
+                device.set_selection(Some(&source));
+                state.active_clipboard_source = Some(source.clone());
+            }
+            Selection::Primary => {
+                device.set_primary_selection(Some(&source));
+                state.active_primary_source = Some(source.clone());
+            }
+        }
+
+        state.sources.push(SourceEntry {
+            proxy: source,
+            payloads,
+        });
+
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Clear clipboard or primary selection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data device is unavailable or dispatch fails.
+    pub fn clear(&mut self, selection: Selection) -> HyprResult<()> {
+        let Self {
+            state, event_queue, ..
+        } = self;
+        let device = state
+            .device
+            .as_ref()
+            .ok_or_else(|| HyprError::WaylandDispatch("no data device available".into()))?;
+
+        match selection {
+            Selection::Clipboard => {
+                device.set_selection(None);
+                state.active_clipboard_source = None;
+            }
+            Selection::Primary => {
+                device.set_primary_selection(None);
+                state.active_primary_source = None;
+            }
+        }
+
+        event_queue
+            .roundtrip(state)
+            .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
+        Ok(())
+    }
+
     /// Re-dispatch events to update clipboard state.
     pub fn refresh(&mut self) -> HyprResult<()> {
-        let Self { state, event_queue } = self;
+        let Self {
+            state, event_queue, ..
+        } = self;
         event_queue
             .roundtrip(state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -294,11 +455,24 @@ struct DataControlState {
     clipboard_offer: Option<OfferEntry>,
     /// Current primary selection offer.
     primary_offer: Option<OfferEntry>,
+    /// Active and recently-used source objects for outbound clipboard data.
+    ///
+    /// Entries are removed when the compositor sends `cancelled`.
+    sources: Vec<SourceEntry>,
+    /// Currently active source for clipboard selection.
+    active_clipboard_source: Option<zwlr_data_control_source_v1::ZwlrDataControlSourceV1>,
+    /// Currently active source for primary selection.
+    active_primary_source: Option<zwlr_data_control_source_v1::ZwlrDataControlSourceV1>,
 }
 
 struct OfferEntry {
     proxy: zwlr_data_control_offer_v1::ZwlrDataControlOfferV1,
     mime_types: Vec<String>,
+}
+
+struct SourceEntry {
+    proxy: zwlr_data_control_source_v1::ZwlrDataControlSourceV1,
+    payloads: HashMap<String, Vec<u8>>,
 }
 
 impl DataControlState {
@@ -310,6 +484,9 @@ impl DataControlState {
             pending_offer: None,
             clipboard_offer: None,
             primary_offer: None,
+            sources: Vec::new(),
+            active_clipboard_source: None,
+            active_primary_source: None,
         }
     }
 }
@@ -459,13 +636,47 @@ impl Dispatch<zwlr_data_control_offer_v1::ZwlrDataControlOfferV1, ()> for DataCo
 
 impl Dispatch<zwlr_data_control_source_v1::ZwlrDataControlSourceV1, ()> for DataControlState {
     fn event(
-        _state: &mut Self,
-        _proxy: &zwlr_data_control_source_v1::ZwlrDataControlSourceV1,
-        _event: zwlr_data_control_source_v1::Event,
+        state: &mut Self,
+        proxy: &zwlr_data_control_source_v1::ZwlrDataControlSourceV1,
+        event: zwlr_data_control_source_v1::Event,
         _data: &(),
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Source events (send, cancelled) handled if/when we implement write.
+        match event {
+            zwlr_data_control_source_v1::Event::Send { mime_type, fd } => {
+                if let Some(source) = state.sources.iter().find(|s| s.proxy == *proxy)
+                    && let Some(payload) = source.payloads.get(&mime_type)
+                {
+                    let mut file = std::fs::File::from(fd);
+                    let _ = file.write_all(payload);
+                    let _ = file.flush();
+                }
+            }
+            zwlr_data_control_source_v1::Event::Cancelled => {
+                if state
+                    .active_clipboard_source
+                    .as_ref()
+                    .is_some_and(|s| *s == *proxy)
+                {
+                    state.active_clipboard_source = None;
+                }
+                if state
+                    .active_primary_source
+                    .as_ref()
+                    .is_some_and(|s| *s == *proxy)
+                {
+                    state.active_primary_source = None;
+                }
+
+                if let Some(idx) = state.sources.iter().position(|s| s.proxy == *proxy) {
+                    let source = state.sources.swap_remove(idx);
+                    source.proxy.destroy();
+                } else {
+                    proxy.destroy();
+                }
+            }
+            _ => {}
+        }
     }
 }
