@@ -13,7 +13,9 @@ use super::common::{ContentType, FullscreenMode, WindowAddress, WorkspaceRef};
 /// Fields only available via the plugin API are `#[serde(default)]`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Window {
-    // -- Identity ------------------------------------------------------------
+    // Identity fields derive from Hyprland's internal address scheme and process tracking.
+    // Address is a hex pointer from the compositor; class/title have initial vs current
+    // variants because XDG clients can change them after map.
     /// Unique address of this window (hex pointer).
     pub address: WindowAddress,
 
@@ -34,7 +36,8 @@ pub struct Window {
     #[serde(rename = "initialTitle")]
     pub initial_title: String,
 
-    // -- Geometry ------------------------------------------------------------
+    // Geometry matches X11/Wayland surface coordinates on the virtual desktop.
+    // Position is absolute (not monitor-relative) so multi-monitor layouts work.
     /// Position `[x, y]` on the virtual desktop.
     #[serde(rename = "at")]
     pub position: [i32; 2],
@@ -42,14 +45,16 @@ pub struct Window {
     /// Size `[width, height]` in pixels.
     pub size: [i32; 2],
 
-    // -- Workspace & monitor -------------------------------------------------
+    // A window always belongs to exactly one workspace on one monitor. These fields
+    // let consumers locate the window in the workspace/monitor hierarchy.
     /// Workspace this window belongs to.
     pub workspace: WorkspaceRef,
 
     /// Monitor ID this window is on.
     pub monitor: i32,
 
-    // -- State flags ---------------------------------------------------------
+    // Boolean state flags control how the compositor treats the window. They affect
+    // rendering, input routing, and layout decisions in the tiling engine.
     /// Whether the window is mapped (visible to the compositor).
     pub mapped: bool,
 
@@ -68,7 +73,9 @@ pub struct Window {
     /// Whether this is an XWayland (X11) window.
     pub xwayland: bool,
 
-    // -- Fullscreen ----------------------------------------------------------
+    // Fullscreen has two independent axes: compositor-driven (user toggle) and
+    // client-requested (app asks for fullscreen). Both must be tracked separately
+    // because they can conflict and have different override semantics.
     /// Internal fullscreen mode (set by compositor/user).
     pub fullscreen: FullscreenMode,
 
@@ -80,14 +87,16 @@ pub struct Window {
     #[serde(rename = "overFullscreen")]
     pub over_fullscreen: bool,
 
-    // -- Groups & tags -------------------------------------------------------
+    // Groups (tabbed containers) and user tags are stored per-window so that tools
+    // can display group membership and filter by custom tags.
     /// Addresses of windows in the same group (empty = not grouped).
     pub grouped: Vec<WindowAddress>,
 
     /// User-assigned tags.
     pub tags: Vec<String>,
 
-    // -- Swallowing & focus --------------------------------------------------
+    // Swallowing lets a terminal hide itself when it spawns a GUI child. Focus
+    // history position is needed for alt-tab style window switching.
     /// Address of the window being swallowed (`0x0` if none).
     pub swallowing: WindowAddress,
 
@@ -99,7 +108,8 @@ pub struct Window {
     #[serde(rename = "inhibitingIdle")]
     pub inhibiting_idle: bool,
 
-    // -- XDG metadata --------------------------------------------------------
+    // XDG metadata is set by the client via xdg-toplevel extensions. These fields
+    // are optional in the protocol so they may be empty strings.
     /// XDG application tag.
     #[serde(rename = "xdgTag")]
     pub xdg_tag: String,
@@ -112,7 +122,9 @@ pub struct Window {
     #[serde(rename = "contentType")]
     pub content_type: ContentType,
 
-    // -- Fields from CWindow (plugin API) ------------------------------------
+    // Plugin API fields come from CWindow internals and are only populated when
+    // accessed through the Hyprland plugin interface, not standard IPC JSON.
+    // They default to false/zero so deserialization from IPC still works.
     /// Urgency hint is set.
     #[serde(default)]
     pub is_urgent: bool,

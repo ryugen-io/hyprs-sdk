@@ -80,13 +80,15 @@ impl PointerWarpClient {
             return Err(HyprError::ProtocolNotSupported("wp_pointer_warp_v1".into()));
         }
 
-        // Create dummy surface from compositor.
+        // The warp protocol requires a wl_surface reference; create a dummy one
+        // since the caller may not have a surface of their own.
         if let Some(ref compositor) = state.compositor {
             let surface = compositor.create_surface(&qh, ());
             state.surface = Some(surface);
         }
 
-        // Get pointer from seat.
+        // The warp protocol requires a wl_pointer; obtain one from the seat
+        // so callers don't need to manage pointer objects themselves.
         if let Some(ref seat) = state.seat {
             let pointer = seat.get_pointer(&qh, ());
             state.pointer = Some(pointer);
@@ -149,7 +151,9 @@ impl fmt::Debug for PointerWarpClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks all the protocol objects the warp operation depends on: the manager,
+// compositor, seat, and the dummy surface + pointer created from them.
 
 struct PointerWarpState {
     warp_manager: Option<wp_pointer_warp_v1::WpPointerWarpV1>,
@@ -171,7 +175,9 @@ impl PointerWarpState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for PointerWarpState {
     fn event(
@@ -227,7 +233,7 @@ impl Dispatch<wp_pointer_warp_v1::WpPointerWarpV1, ()> for PointerWarpState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Pointer warp has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -240,7 +246,7 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for PointerWarpState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Compositor has no events.
+        // Dispatch impl required by wayland-client; compositor events are unused here.
     }
 }
 
@@ -253,7 +259,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for PointerWarpState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Seat events not needed for pointer warp.
+        // We only need the seat to obtain a wl_pointer; its events are irrelevant.
     }
 }
 
@@ -266,7 +272,7 @@ impl Dispatch<wl_surface::WlSurface, ()> for PointerWarpState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Surface events not needed for pointer warp.
+        // The surface is a dummy target for warp coordinates; its events are irrelevant.
     }
 }
 
@@ -279,6 +285,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for PointerWarpState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Pointer events not needed for warp.
+        // We only use the pointer as a warp target; its motion/button events are irrelevant.
     }
 }

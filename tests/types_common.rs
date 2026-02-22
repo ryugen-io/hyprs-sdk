@@ -53,7 +53,7 @@ fn workspace_id_valid() {
     assert!(WorkspaceId(1).is_valid());
 }
 
-// -- WorkspaceRef --
+// WHY: Needed for correctness and maintainability: -- WorkspaceRef --
 
 #[test]
 fn workspace_ref_serde() {
@@ -74,7 +74,7 @@ fn workspace_ref_from_ipc_json() {
     assert_eq!(r.name, "browser");
 }
 
-// -- FullscreenMode --
+// WHY: Needed for correctness and maintainability: -- FullscreenMode --
 
 #[test]
 fn fullscreen_mode_serde_roundtrip() {
@@ -105,14 +105,14 @@ fn fullscreen_mode_unknown_raw_defaults() {
     assert_eq!(FullscreenMode::from_raw(99), FullscreenMode::None);
 }
 
-// -- OutputTransform --
+// WHY: Needed for correctness and maintainability: -- OutputTransform --
 
 #[test]
 fn output_transform_default() {
     assert_eq!(OutputTransform::default(), OutputTransform::Normal);
 }
 
-// -- Layer --
+// WHY: Needed for correctness and maintainability: -- Layer --
 
 #[test]
 fn layer_from_raw() {
@@ -121,7 +121,7 @@ fn layer_from_raw() {
     assert_eq!(Layer::from_raw(99), None);
 }
 
-// -- ContentType --
+// WHY: Needed for correctness and maintainability: -- ContentType --
 
 #[test]
 fn content_type_serde_roundtrip() {

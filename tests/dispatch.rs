@@ -1,6 +1,6 @@
 use hypr_sdk::dispatch::*;
 
-// -- exec --------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- exec --------------------------------------------------------------------
 
 #[test]
 fn exec_command() {
@@ -28,7 +28,7 @@ fn exit_command() {
     assert!(cmd.args.is_empty());
 }
 
-// -- window ------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- window ------------------------------------------------------------------
 
 #[test]
 fn kill_active() {
@@ -91,7 +91,7 @@ fn tag_window() {
     assert_eq!(cmd.name, "tagwindow");
 }
 
-// -- focus -------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- focus -------------------------------------------------------------------
 
 #[test]
 fn move_focus_directions() {
@@ -125,7 +125,7 @@ fn focus_urgent_or_last() {
     assert!(focus::focus_urgent_or_last().args.is_empty());
 }
 
-// -- movement ----------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- movement ----------------------------------------------------------------
 
 #[test]
 fn move_window_direction() {
@@ -183,7 +183,7 @@ fn move_cursor_to_corner() {
     assert_eq!(cmd.args, "2");
 }
 
-// -- workspace ---------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- workspace ---------------------------------------------------------------
 
 #[test]
 fn workspace_switch() {
@@ -234,7 +234,7 @@ fn swap_active_workspaces() {
     assert_eq!(cmd.args, "DP-1 DP-2");
 }
 
-// -- group -------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- group -------------------------------------------------------------------
 
 #[test]
 fn toggle_group() {
@@ -273,7 +273,7 @@ fn deny_window_from_group() {
     assert_eq!(cmd.args, "toggle");
 }
 
-// -- layout ------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- layout ------------------------------------------------------------------
 
 #[test]
 fn pseudo() {
@@ -298,7 +298,7 @@ fn layout_msg() {
     assert_eq!(cmd.name, "layoutmsg");
 }
 
-// -- input -------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- input -------------------------------------------------------------------
 
 #[test]
 fn submap_enter() {
@@ -343,7 +343,7 @@ fn pass_input() {
     assert_eq!(cmd.name, "pass");
 }
 
-// -- misc --------------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- misc --------------------------------------------------------------------
 
 #[test]
 fn force_renderer_reload() {
@@ -363,7 +363,7 @@ fn force_idle() {
     assert_eq!(cmd.name, "forceidle");
 }
 
-// -- coverage gaps ------------------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- coverage gaps ------------------------------------------------------------
 
 #[test]
 fn force_kill_active() {

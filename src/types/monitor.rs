@@ -13,7 +13,9 @@ use super::common::{MonitorId, WindowAddress, WorkspaceRef};
 /// Fields only available via the plugin API are `#[serde(default)]`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Monitor {
-    // -- Identity ------------------------------------------------------------
+    // Identity fields uniquely identify a physical output. The name (e.g. "DP-1") is
+    // the DRM connector name and is stable across restarts; make/model/serial come
+    // from EDID and are used for persistent per-monitor config matching.
     /// Numeric monitor ID.
     pub id: MonitorId,
 
@@ -32,7 +34,8 @@ pub struct Monitor {
     /// Serial number.
     pub serial: String,
 
-    // -- Resolution & physical size ------------------------------------------
+    // Resolution is the active mode's pixel dimensions. Physical size in mm comes from
+    // EDID and is needed for DPI calculation and fractional scaling decisions.
     /// Pixel width.
     pub width: i32,
 
@@ -51,14 +54,17 @@ pub struct Monitor {
     #[serde(rename = "refreshRate")]
     pub refresh_rate: f64,
 
-    // -- Position ------------------------------------------------------------
+    // Position in the virtual desktop coordinate space. Multi-monitor layouts place
+    // monitors side-by-side or stacked; these offsets define the arrangement.
     /// X position on the virtual desktop.
     pub x: i32,
 
     /// Y position on the virtual desktop.
     pub y: i32,
 
-    // -- Workspaces ----------------------------------------------------------
+    // Each monitor has one active workspace and optionally one special (scratchpad)
+    // workspace. Tracking both is needed for workspace-aware bar displays and
+    // window-to-monitor routing logic.
     /// Currently active workspace on this monitor.
     #[serde(rename = "activeWorkspace")]
     pub active_workspace: WorkspaceRef,
@@ -67,7 +73,9 @@ pub struct Monitor {
     #[serde(rename = "specialWorkspace")]
     pub special_workspace: WorkspaceRef,
 
-    // -- Display settings ----------------------------------------------------
+    // Display settings affect how content is rendered on this output. Reserved areas
+    // are claimed by bars/panels; scale and transform define the output-to-surface
+    // coordinate mapping per the Wayland output protocol.
     /// Reserved pixel areas `[left, top, right, bottom]` (e.g. for bars).
     pub reserved: [i32; 4],
 
@@ -77,7 +85,8 @@ pub struct Monitor {
     /// Output transform (`wl_output_transform` integer value).
     pub transform: i32,
 
-    // -- State flags ---------------------------------------------------------
+    // Runtime state flags reflect transient monitor conditions. These change frequently
+    // (e.g. focus follows mouse, DPMS toggles on idle) and drive bar/indicator UIs.
     /// Whether this monitor is currently focused.
     pub focused: bool,
 
@@ -91,7 +100,8 @@ pub struct Monitor {
     /// Whether the monitor is disabled.
     pub disabled: bool,
 
-    // -- Solitary client -----------------------------------------------------
+    // Solitary mode is an optimization: when only one window is visible, the compositor
+    // can skip certain rendering steps. The blocked-by bitmask tracks why it cannot.
     /// Address of the solitary (only visible) client, or `0x0`.
     pub solitary: WindowAddress,
 
@@ -99,7 +109,8 @@ pub struct Monitor {
     #[serde(rename = "solitaryBlockedBy")]
     pub solitary_blocked_by: u32,
 
-    // -- Tearing -------------------------------------------------------------
+    // Tearing (immediate presentation without vsync) is used for latency-sensitive apps
+    // like games. The blocked-by bitmask lets tools explain why tearing is not active.
     /// Whether frame tearing is actively occurring.
     #[serde(rename = "activelyTearing")]
     pub actively_tearing: bool,
@@ -108,7 +119,8 @@ pub struct Monitor {
     #[serde(rename = "tearingBlockedBy")]
     pub tearing_blocked_by: u8,
 
-    // -- Direct scanout ------------------------------------------------------
+    // Direct scanout bypasses composition by presenting the client buffer directly on
+    // the display plane. Like tearing, the blocked-by bitmask explains blockers.
     /// Address of the direct-scanout client, or `0x0`.
     #[serde(rename = "directScanoutTo")]
     pub direct_scanout_to: WindowAddress,
@@ -117,7 +129,8 @@ pub struct Monitor {
     #[serde(rename = "directScanoutBlockedBy")]
     pub direct_scanout_blocked_by: u16,
 
-    // -- Format & mirroring --------------------------------------------------
+    // Pixel format and mirroring are DRM/KMS-level settings. The format determines
+    // color depth and HDR capability; mirror_of links two outputs for cloning.
     /// Current DRM pixel format (e.g. "DRM_FORMAT_XRGB8888").
     #[serde(rename = "currentFormat")]
     pub current_format: String,
@@ -130,7 +143,8 @@ pub struct Monitor {
     #[serde(rename = "availableModes")]
     pub available_modes: Vec<String>,
 
-    // -- Color management ----------------------------------------------------
+    // Color management fields control HDR/SDR tone mapping. These are needed for
+    // correct rendering on HDR displays and for user-facing brightness/saturation controls.
     /// Color management preset name (e.g. "sRGB").
     #[serde(rename = "colorManagementPreset")]
     pub color_management_preset: String,
@@ -151,7 +165,9 @@ pub struct Monitor {
     #[serde(rename = "sdrMaxLuminance")]
     pub sdr_max_luminance: i32,
 
-    // -- Fields from CMonitor (plugin API) -----------------------------------
+    // Plugin API fields come from CMonitor internals and are only populated when
+    // accessed through the Hyprland plugin interface, not standard IPC JSON.
+    // They default so that IPC deserialization works without these keys present.
     /// Whether 10-bit color is enabled.
     #[serde(default)]
     pub enabled_10bit: bool,

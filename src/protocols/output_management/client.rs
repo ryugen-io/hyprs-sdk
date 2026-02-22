@@ -62,7 +62,8 @@ impl OutputManagementClient {
 
         let mut state = OutputManagementState::new();
 
-        // Registry roundtrip: bind manager.
+        // First roundtrip: Wayland globals are advertised asynchronously; roundtrip
+        // ensures the output manager global is bound before creating child objects.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -74,17 +75,21 @@ impl OutputManagementClient {
             ));
         }
 
-        // Second roundtrip: receive head events from manager.
+        // Second roundtrip: the manager emits head events for each connected output
+        // asynchronously after binding; roundtrip collects all head proxies.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Third roundtrip: receive head property events + mode events + done.
+        // Third roundtrip: head property events (name, description, modes) and mode
+        // child objects arrive after the heads are created; roundtrip collects them.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Fourth roundtrip: ensure all mode properties are received.
+        // Fourth roundtrip: mode property events (size, refresh, preferred) arrive on
+        // the mode objects created in the previous roundtrip; this collects them all
+        // so heads() returns complete mode information.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -112,7 +117,8 @@ impl OutputManagementClient {
                     })
                     .collect();
 
-                // Find current mode index by matching the proxy.
+                // The protocol identifies the current mode by proxy object, but our
+                // public API uses an index into the filtered modes vec for ergonomics.
                 let current_mode = h.current_mode_proxy.as_ref().and_then(|current| {
                     h.modes
                         .iter()
@@ -190,6 +196,8 @@ impl fmt::Debug for OutputManagementClient {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+// Separated from the client impl to keep the public API surface clean;
+// these functions encapsulate the protocol's configuration lifecycle.
 
 /// Build a configuration object with all entries applied.
 fn build_config(
@@ -257,7 +265,8 @@ fn await_config_result(
         .roundtrip(state)
         .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-    // Extra roundtrip if result hasn't arrived yet.
+    // The compositor may need an extra roundtrip to process the configuration
+    // and send the succeeded/failed/cancelled response.
     if state.config_result.is_none() {
         event_queue
             .roundtrip(state)

@@ -71,7 +71,8 @@ pub fn invoke_hyprctl(
     let output = unsafe {
         let slice = std::slice::from_raw_parts(out_ptr.cast::<u8>(), out_len);
         let s = String::from_utf8_lossy(slice).into_owned();
-        // Free the bridge-allocated string.
+        // The bridge allocated out_ptr with malloc; we must free it here to avoid a leak
+        // since Rust's String::from_utf8_lossy already copied the data.
         ffi::free_bridge_string(out_ptr);
         s
     };
@@ -208,7 +209,7 @@ pub fn register_hyprctl_command(
             "failed to register hyprctl command: {name}"
         )))
     } else {
-        // Note: data_ptr is intentionally leaked — it lives as long as the
+        // Note: data_ptr is intentionally leaked -- it lives as long as the
         // command is registered. It gets cleaned up when the bridge data is
         // freed (on unregister or plugin exit).
         Ok(HyprCtlCommandGuard {

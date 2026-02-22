@@ -49,6 +49,8 @@ impl ScreencopyState {
 }
 
 // ── Dispatch implementations ─────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue; without these the roundtrip calls would panic.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ScreencopyState {
     fn event(

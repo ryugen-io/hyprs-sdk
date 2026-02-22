@@ -54,7 +54,7 @@ impl HyprlandClient {
         &self.socket2
     }
 
-    // -- Raw request ----------------------------------------------------------
+    // Lowest-level API: callers who need unparsed text or want to send commands this SDK doesn't wrap yet.
 
     /// Send a raw command and return the response string.
     ///
@@ -70,7 +70,8 @@ impl HyprlandClient {
         self.request(&wire).await
     }
 
-    // -- Action commands (return ok/error) ------------------------------------
+    // Actions differ from queries: Hyprland responds with "ok" or an error string.
+    // Separating them lets us return Result<()> instead of forcing callers to inspect raw text.
 
     /// Send an action command and check for success.
     ///
@@ -162,7 +163,8 @@ impl HyprlandClient {
         self.request(&commands::batch(cmds)).await
     }
 
-    // -- Text queries (return raw string) -------------------------------------
+    // Some commands (splash, submap, systeminfo) only return human-readable text with no JSON mode.
+    // These must stay as raw-string queries because there is no structured format to deserialize.
 
     /// Get the current splash screen message.
     pub async fn splash(&self) -> HyprResult<String> {
@@ -221,7 +223,8 @@ impl HyprlandClient {
             .await
     }
 
-    // -- Typed JSON queries ---------------------------------------------------
+    // Typed queries force the `j` (JSON) flag and deserialize into Rust structs.
+    // This is the preferred API: callers get compile-time field access instead of string parsing.
 
     /// Query all monitors (JSON-deserialized).
     pub async fn monitors_typed(&self) -> HyprResult<Vec<Monitor>> {
@@ -378,7 +381,8 @@ impl HyprlandClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
-    // -- Raw queries with flags -----------------------------------------------
+    // Raw flagged queries let callers combine flags (json, all, config, reload) and handle
+    // the response themselves. Useful when the caller needs a flag combo the typed API doesn't cover.
 
     /// Query monitors with custom flags.
     pub async fn monitors(&self, flags: Flags) -> HyprResult<String> {
@@ -450,7 +454,8 @@ impl HyprlandClient {
         self.request(&commands::config_errors(flags)).await
     }
 
-    // -- Event stream ---------------------------------------------------------
+    // Socket2 is a separate Unix socket that pushes events (no request/response).
+    // Returning the raw stream lets callers choose their own parsing/buffering strategy.
 
     /// Connect to Socket2 and return a raw event stream.
     ///

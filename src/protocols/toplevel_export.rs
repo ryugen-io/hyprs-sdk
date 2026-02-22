@@ -157,16 +157,18 @@ impl ToplevelExportClient {
             HyprError::ProtocolNotSupported("hyprland_toplevel_export_manager_v1".into())
         })?;
 
-        // Reset frame state.
+        // Clear previous capture state so events from this capture don't mix
+        // with leftovers from a prior one.
         state.frame_format = None;
         state.frame_flags = None;
         state.frame_ready = false;
         state.frame_failed = false;
 
-        // Request a frame capture. overlay_cursor = 0 (no cursor).
+        // overlay_cursor = 0 excludes the hardware cursor from the capture.
         let _frame = manager.capture_toplevel(0, toplevel_handle, qh, ());
 
-        // First roundtrip: receive buffer format events.
+        // The compositor sends buffer format events asynchronously after frame creation;
+        // roundtrip ensures we know the required buffer dimensions before allocating.
         event_queue
             .roundtrip(state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -175,7 +177,8 @@ impl ToplevelExportClient {
             HyprError::WaylandDispatch("no buffer format received from toplevel export".into())
         })?;
 
-        // Create shared memory buffer.
+        // The capture protocol requires a wl_buffer backed by shared memory; the
+        // compositor writes pixel data into it after we call frame.copy().
         let shm = state
             .shm
             .as_ref()
@@ -196,14 +199,15 @@ impl ToplevelExportClient {
             (),
         );
 
-        // Copy frame into the buffer.
+        // Initiate the pixel copy into our shared-memory buffer; the compositor will
+        // signal "ready" or "failed" asynchronously.
         let frame = state
             .frame_handle
             .as_ref()
             .ok_or_else(|| HyprError::WaylandDispatch("no frame handle available".into()))?;
         frame.copy(&buffer, 0);
 
-        // Roundtrip until ready or failed.
+        // Wait for the compositor to finish copying pixels and send the ready/failed event.
         event_queue
             .roundtrip(state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -214,7 +218,8 @@ impl ToplevelExportClient {
             ));
         }
 
-        // Read pixel data from shared memory.
+        // The compositor wrote pixel data into the shared-memory fd; read it back into
+        // a Vec so the caller owns a standalone copy.
         let data =
             if state.frame_ready {
                 Some(read_shm_file(&mut tmpfile, buf_size).map_err(|e| {
@@ -224,7 +229,8 @@ impl ToplevelExportClient {
                 None
             };
 
-        // Clean up.
+        // Destroy the one-shot buffer and pool; they are no longer needed
+        // once we've read the pixel data.
         buffer.destroy();
         pool.destroy();
         state.frame_handle = None;
@@ -243,7 +249,10 @@ impl fmt::Debug for ToplevelExportClient {
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
+// Shared-memory file helpers. The Wayland shm protocol requires passing pixel
+// data via an fd; we create a temp file and immediately unlink it so the fd
+// outlives the filesystem path.
 
 fn create_shm_file(size: usize) -> std::io::Result<std::fs::File> {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
@@ -254,9 +263,10 @@ fn create_shm_file(size: usize) -> std::io::Result<std::fs::File> {
         .create(true)
         .truncate(true)
         .open(&path)?;
-    // Pre-allocate the file to the required size.
+    // The shm pool requires the fd to be at least this large; pre-allocate so
+    // mmap by the compositor succeeds.
     file.set_len(size as u64)?;
-    // Remove the file so only the fd remains.
+    // Unlink immediately so no stale file remains; the open fd stays valid.
     let _ = std::fs::remove_file(&path);
     Ok(file)
 }
@@ -268,7 +278,9 @@ fn read_shm_file(file: &mut std::fs::File, size: usize) -> std::io::Result<Vec<u
     Ok(buf)
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the export manager, shm, and per-capture frame state that accumulates
+// format/flags/ready events across roundtrips.
 
 struct ToplevelExportState {
     manager: Option<hyprland_toplevel_export_manager_v1::HyprlandToplevelExportManagerV1>,
@@ -294,7 +306,9 @@ impl ToplevelExportState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ToplevelExportState {
     fn event(
@@ -344,7 +358,7 @@ impl Dispatch<hyprland_toplevel_export_manager_v1::HyprlandToplevelExportManager
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -366,7 +380,8 @@ impl Dispatch<hyprland_toplevel_export_frame_v1::HyprlandToplevelExportFrameV1, 
                 height,
                 stride,
             } => {
-                // Only store the first shm format.
+                // The compositor may offer multiple formats; take the first one since we
+                // only need a single supported format for the capture.
                 if state.frame_format.is_none()
                     && let WEnum::Value(fmt) = format
                 {
@@ -377,7 +392,7 @@ impl Dispatch<hyprland_toplevel_export_frame_v1::HyprlandToplevelExportFrameV1, 
                         stride,
                     });
                 }
-                // Store the frame handle for later copy.
+                // Save the frame proxy so we can call copy() on it after allocating the buffer.
                 if state.frame_handle.is_none() {
                     state.frame_handle = Some(proxy.clone());
                 }
@@ -405,7 +420,7 @@ impl Dispatch<wl_shm::WlShm, ()> for ToplevelExportState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Shm format events not needed.
+        // We don't inspect shm format advertisements; we pick a format from the frame events.
     }
 }
 
@@ -418,7 +433,7 @@ impl Dispatch<wl_shm_pool::WlShmPool, ()> for ToplevelExportState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Pool has no events.
+        // Dispatch impl required by wayland-client; shm pools are request-only.
     }
 }
 
@@ -431,6 +446,7 @@ impl Dispatch<wl_buffer::WlBuffer, ()> for ToplevelExportState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Buffer release events not needed for one-shot capture.
+        // Buffer release events are for reuse scenarios; we destroy the buffer after
+        // each one-shot capture so release is irrelevant.
     }
 }

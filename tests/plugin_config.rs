@@ -14,8 +14,8 @@ fn config_default_int() {
 
 #[test]
 fn config_default_float() {
-    let val = ConfigDefault::Float(3.14);
-    assert_eq!(val, ConfigDefault::Float(3.14));
+    let val = ConfigDefault::Float(3.125);
+    assert_eq!(val, ConfigDefault::Float(3.125));
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn keyword_handler_options_default() {
 
 #[test]
 fn keyword_handler_type_check() {
-    // Verify KeywordHandler can hold a closure.
+    // WHY: Needed for correctness and maintainability: Verify KeywordHandler can hold a closure.
     let _h: KeywordHandler = Box::new(|_value| Ok(()));
 }
 

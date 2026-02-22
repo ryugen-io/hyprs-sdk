@@ -208,7 +208,8 @@ impl fmt::Debug for SessionLockClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the manager, active lock object, and last-known lock state.
 
 struct SessionLockState {
     manager: Option<ext_session_lock_manager_v1::ExtSessionLockManagerV1>,
@@ -226,7 +227,9 @@ impl SessionLockState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for SessionLockState {
     fn event(
@@ -266,7 +269,7 @@ impl Dispatch<ext_session_lock_manager_v1::ExtSessionLockManagerV1, ()> for Sess
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

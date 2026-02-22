@@ -42,7 +42,7 @@ pub mod types;
 pub use hooks::HookEvent;
 pub use types::*;
 
-// Re-export key items from safe wrapper modules.
+// Flatten the public API so users can `use hypr_sdk::plugin::*` without navigating submodule paths.
 pub use api::{
     Color, FunctionHookHandle, HookCallback, HookCallbackGuard, HyprCtlCommandGuard,
     HyprCtlCommandHandler, add_notification, add_notification_v2, reload_config,

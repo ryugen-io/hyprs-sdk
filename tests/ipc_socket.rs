@@ -46,7 +46,7 @@ async fn request_handles_empty_response() {
         let (mut stream, _) = listener.accept().await.unwrap();
         let mut buf = Vec::new();
         stream.read_to_end(&mut buf).await.unwrap();
-        // Server closes without writing anything.
+        // WHY: Needed for correctness and maintainability: Server closes without writing anything.
     });
 
     let response = hypr_sdk::ipc::socket::request(&sock, "version")

@@ -6,7 +6,8 @@
 //! Wire format: `[FLAGS]/COMMAND[ ARGS]`
 //! Flags: `j` = JSON, `r` = reload, `a` = all, `c` = config.
 
-// -- Output format ------------------------------------------------------------
+// Hyprland's wire format prefixes commands with single-char flags (j/r/a/c) before a slash.
+// Centralising flag encoding here keeps every command builder consistent with the protocol.
 
 /// Output format flags for commands that support them.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -62,7 +63,8 @@ fn flagged(flags: Flags, command: &str) -> String {
     }
 }
 
-// -- Exact-match queries (no arguments) ---------------------------------------
+// Parameterless commands: Hyprland matches these by exact name with no trailing space.
+// They only vary by output-format flags, so each builder just delegates to `flagged()`.
 
 /// List all workspaces.
 pub fn workspaces(flags: Flags) -> String {
@@ -174,7 +176,8 @@ pub fn reload_shaders() -> String {
     "reloadshaders".into()
 }
 
-// -- Prefix-match commands (take arguments) -----------------------------------
+// Commands with arguments: Hyprland prefix-matches the command name and treats everything
+// after the first space as the argument payload. Each builder handles formatting constraints.
 
 /// List monitors.
 pub fn monitors(flags: Flags) -> String {
@@ -258,7 +261,8 @@ pub fn decorations(window_address: &str, flags: Flags) -> String {
     flagged(flags, &format!("decorations {window_address}"))
 }
 
-// -- Batch --------------------------------------------------------------------
+// Batch wraps commands in a `[[BATCH]]` prefix so Hyprland executes them atomically
+// in a single compositor tick, avoiding intermediate redraws between related operations.
 
 /// Wrap multiple commands in a batch.
 pub fn batch(commands: &[String]) -> String {

@@ -144,7 +144,7 @@ impl VirtualKeyboardClient {
             .as_ref()
             .ok_or_else(|| HyprError::WaylandDispatch("no virtual keyboard created".into()))?;
 
-        // Write keymap to a temp file and pass the fd.
+        // The protocol requires keymap data to be passed via an fd, not inline bytes.
         let mut tmpfile = tempfile().map_err(|e| {
             HyprError::WaylandDispatch(format!("failed to create keymap temp file: {e}"))
         })?;
@@ -152,7 +152,7 @@ impl VirtualKeyboardClient {
             .write_all(keymap_data)
             .map_err(|e| HyprError::WaylandDispatch(format!("failed to write keymap: {e}")))?;
 
-        // XKB_KEYMAP_FORMAT_TEXT_V1 = 1
+        // Format 1 = XKB_KEYMAP_FORMAT_TEXT_V1, the only format the protocol accepts.
         keyboard.keymap(1, tmpfile.as_fd(), keymap_data.len() as u32);
 
         let Self { state, event_queue } = self;
@@ -221,7 +221,8 @@ impl fmt::Debug for VirtualKeyboardClient {
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
+// Temp-file helper for passing keymap data to the compositor via an fd.
 
 /// Create a temporary file in `$XDG_RUNTIME_DIR`.
 fn tempfile() -> std::io::Result<std::fs::File> {
@@ -233,12 +234,13 @@ fn tempfile() -> std::io::Result<std::fs::File> {
         .create(true)
         .truncate(true)
         .open(&path)?;
-    // Remove the file so only the fd remains.
+    // Unlink immediately so no stale file remains; the open fd stays valid.
     let _ = std::fs::remove_file(&path);
     Ok(file)
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the manager, seat, and virtual keyboard objects.
 
 struct VirtualKeyboardState {
     manager: Option<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1>,
@@ -256,7 +258,9 @@ impl VirtualKeyboardState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for VirtualKeyboardState {
     fn event(
@@ -306,7 +310,7 @@ impl Dispatch<zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, ()>
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -319,7 +323,7 @@ impl Dispatch<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1, ()> for VirtualKeyb
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Virtual keyboard has no events.
+        // Dispatch impl required by wayland-client; virtual keyboard is request-only.
     }
 }
 
@@ -332,6 +336,6 @@ impl Dispatch<wl_seat::WlSeat, ()> for VirtualKeyboardState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Seat events not needed for virtual keyboard.
+        // We only need the seat to create the virtual keyboard; its events are irrelevant.
     }
 }

@@ -110,7 +110,8 @@ impl CtmControlClient {
             ));
         }
 
-        // Second roundtrip to receive wl_output name events.
+        // Output name events arrive on the wl_output objects bound in the previous
+        // roundtrip; a second roundtrip collects them so we can identify outputs by name.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -195,7 +196,8 @@ impl fmt::Debug for CtmControlClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the CTM manager and discovered outputs with their names.
 
 struct CtmControlState {
     manager: Option<hyprland_ctm_control_manager_v1::HyprlandCtmControlManagerV1>,
@@ -217,7 +219,9 @@ impl CtmControlState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for CtmControlState {
     fn event(
@@ -296,6 +300,6 @@ impl Dispatch<hyprland_ctm_control_manager_v1::HyprlandCtmControlManagerV1, ()>
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events in v1.
+        // Dispatch impl required by wayland-client; CTM manager v1 is request-only.
     }
 }

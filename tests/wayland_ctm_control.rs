@@ -21,7 +21,7 @@ fn scale_matrix() {
 #[test]
 fn grayscale_matrix() {
     let m = ColorTransformMatrix::grayscale();
-    // All rows should be identical (same luminance weights)
+    // WHY: Needed for correctness and maintainability: All rows should be identical (same luminance weights)
     assert_eq!(m.elements[0..3], m.elements[3..6]);
     assert_eq!(m.elements[3..6], m.elements[6..9]);
 }

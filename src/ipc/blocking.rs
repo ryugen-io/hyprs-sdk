@@ -40,7 +40,8 @@ impl BlockingClient {
         Ok(Self::from_instance(&instance))
     }
 
-    // -- Raw request ----------------------------------------------------------
+    // Lowest-level blocking API: exists so callers without a tokio runtime (scripts, CLI tools,
+    // FFI consumers) can still issue raw IPC commands without pulling in async machinery.
 
     /// Send a raw command and return the response string.
     pub fn request(&self, command: &str) -> HyprResult<String> {
@@ -53,7 +54,8 @@ impl BlockingClient {
         self.request(&wire)
     }
 
-    // -- Action commands ------------------------------------------------------
+    // Actions return "ok" or an error string from Hyprland. The blocking variant parses this
+    // identically to the async client so callers get the same Result<()> semantics.
 
     fn action(&self, command: &str) -> HyprResult<()> {
         let response = self.request(command)?;
@@ -134,7 +136,8 @@ impl BlockingClient {
         self.request(&commands::batch(cmds))
     }
 
-    // -- Text queries ---------------------------------------------------------
+    // Text-only queries (no JSON mode available). Blocking variants exist so synchronous callers
+    // don't need a tokio runtime for simple one-shot queries.
 
     /// Get splash screen message.
     pub fn splash(&self) -> HyprResult<String> {
@@ -186,7 +189,8 @@ impl BlockingClient {
         self.request(&commands::decorations(window, flags))
     }
 
-    // -- Typed JSON queries ---------------------------------------------------
+    // Typed JSON queries with blocking I/O. These mirror the async API so callers can switch
+    // between async and blocking without changing their deserialization logic.
 
     /// Query all monitors (JSON-deserialized).
     pub fn monitors_typed(&self) -> HyprResult<Vec<Monitor>> {
@@ -321,7 +325,8 @@ impl BlockingClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
-    // -- Raw queries with flags -----------------------------------------------
+    // Raw flagged queries for callers who need custom flag combinations with blocking I/O.
+    // Exposes the same flexibility as the async client for scripts and tools without async runtimes.
 
     /// Query monitors with custom flags.
     pub fn monitors(&self, flags: Flags) -> HyprResult<String> {

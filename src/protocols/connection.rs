@@ -92,7 +92,8 @@ impl WaylandConnection {
             globals: Vec::new(),
         };
 
-        // Roundtrip to receive all registry.global events.
+        // Wayland events arrive asynchronously; roundtrip blocks until all pending
+        // registry.global events have been delivered so we can safely use the bound objects.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;

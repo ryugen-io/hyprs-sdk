@@ -74,6 +74,8 @@ pub(super) fn transform_from_i32(val: i32) -> wl_output::Transform {
 }
 
 // ── Dispatch implementations ─────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue; without these the roundtrip calls would panic.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for OutputManagementState {
     fn event(
@@ -137,14 +139,16 @@ impl Dispatch<zwlr_output_manager_v1::ZwlrOutputManagerV1, ()> for OutputManagem
                 state.serial = serial;
             }
             zwlr_output_manager_v1::Event::Finished => {
-                // Manager going away.
+                // The compositor is shutting down the manager; clearing it prevents
+                // use-after-destroy if the client tries to create new configurations.
             }
             _ => {}
         }
     }
 
     event_created_child!(OutputManagementState, zwlr_output_manager_v1::ZwlrOutputManagerV1, [
-        // Opcode 0 = head event creates a new head object.
+        // wayland-client dispatches child-object creation by opcode, not event name;
+        // opcode 0 is the head event that spawns a new output head object.
         0 => (zwlr_output_head_v1::ZwlrOutputHeadV1, ()),
     ]);
 }
@@ -217,7 +221,8 @@ impl Dispatch<zwlr_output_head_v1::ZwlrOutputHeadV1, ()> for OutputManagementSta
     }
 
     event_created_child!(OutputManagementState, zwlr_output_head_v1::ZwlrOutputHeadV1, [
-        // Opcode 3 = mode event creates a new mode object.
+        // wayland-client dispatches child-object creation by opcode, not event name;
+        // opcode 3 on the head object is the mode event that spawns a mode handle.
         3 => (zwlr_output_mode_v1::ZwlrOutputModeV1, ()),
     ]);
 }
@@ -231,7 +236,8 @@ impl Dispatch<zwlr_output_mode_v1::ZwlrOutputModeV1, ()> for OutputManagementSta
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Find the mode entry across all heads.
+        // Modes are child objects of heads but dispatched independently; we must
+        // search all heads to find which one owns this mode proxy.
         for head in &mut state.heads {
             if let Some(mode) = head.modes.iter_mut().find(|m| m.proxy == *proxy) {
                 match event {
@@ -293,6 +299,7 @@ impl Dispatch<zwlr_output_configuration_head_v1::ZwlrOutputConfigurationHeadV1, 
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Configuration head has no events.
+        // wayland-client requires a Dispatch impl for every object on the event queue;
+        // configuration heads are request-only and never emit events.
     }
 }

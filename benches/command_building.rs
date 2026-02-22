@@ -84,8 +84,8 @@ fn bench_query_commands(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("kill", |b| b.iter(|| commands::kill()));
-    group.bench_function("splash", |b| b.iter(|| commands::splash()));
+    group.bench_function("kill", |b| b.iter(commands::kill));
+    group.bench_function("splash", |b| b.iter(commands::splash));
     group.bench_function("submap", |b| b.iter(commands::submap));
     group.bench_function("reload_shaders", |b| b.iter(commands::reload_shaders));
 

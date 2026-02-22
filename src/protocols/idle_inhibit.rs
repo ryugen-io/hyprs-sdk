@@ -77,7 +77,8 @@ impl IdleInhibitClient {
             ));
         }
 
-        // Create a dummy surface for the inhibitor.
+        // The idle-inhibit protocol ties the inhibitor to a wl_surface; create a dummy
+        // one since the caller may not have a surface of their own.
         if let Some(ref compositor) = state.compositor {
             let surface = compositor.create_surface(&qh, ());
             state.surface = Some(surface);
@@ -174,7 +175,8 @@ impl fmt::Debug for IdleInhibitClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the manager, compositor, dummy surface, and active inhibitor.
 
 struct IdleInhibitState {
     manager: Option<zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1>,
@@ -194,7 +196,9 @@ impl IdleInhibitState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for IdleInhibitState {
     fn event(
@@ -246,7 +250,7 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for IdleInhibitState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Compositor has no events.
+        // Dispatch impl required by wayland-client; compositor events are unused here.
     }
 }
 
@@ -259,7 +263,7 @@ impl Dispatch<wl_surface::WlSurface, ()> for IdleInhibitState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Surface events not needed for idle inhibit.
+        // The surface is a dummy anchor for the inhibitor; its events are irrelevant.
     }
 }
 
@@ -272,7 +276,7 @@ impl Dispatch<zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1, ()> for Idle
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -285,6 +289,6 @@ impl Dispatch<zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1, ()> for IdleInhibitStat
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Inhibitor has no events.
+        // Dispatch impl required by wayland-client; inhibitor is request-only.
     }
 }

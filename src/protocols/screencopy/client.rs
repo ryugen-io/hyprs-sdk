@@ -67,7 +67,8 @@ impl ScreencopyClient {
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Second roundtrip: receive output name events.
+        // Output name events arrive asynchronously after binding; a second roundtrip
+        // collects them so capture_output can identify outputs by index.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -185,6 +186,9 @@ impl fmt::Debug for ScreencopyClient {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+// Separated from the client impl to keep the public API surface clean;
+// these functions encapsulate the multi-roundtrip capture lifecycle and
+// shared-memory buffer management.
 
 fn complete_capture(
     state: &mut ScreencopyState,

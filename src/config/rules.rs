@@ -10,7 +10,8 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum WindowRuleEffect {
-    // -- Static effects (applied once at map time) --
+    // Static effects are applied once when the window is first mapped and never
+    // re-evaluated, so they must capture the initial desired state.
     Float,
     Tile,
     Fullscreen,
@@ -29,7 +30,8 @@ pub enum WindowRuleEffect {
     Content,
     NoCloseFor,
 
-    // -- Dynamic effects (can change over window lifetime) --
+    // Dynamic effects are re-evaluated whenever window properties change (e.g. title,
+    // class, focus state), allowing rules to respond to runtime state transitions.
     Rounding,
     RoundingPower,
     PersistentSize,

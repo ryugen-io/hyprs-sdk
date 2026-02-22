@@ -217,7 +217,8 @@ pub fn register_config_keyword(
     };
 
     if !result {
-        // Reclaim on failure.
+        // The FFI call failed, so the C++ side never took ownership of data_ptr.
+        // We must reclaim it here to avoid leaking the Box we created above.
         // SAFETY: We just created this pointer and nobody else holds it.
         unsafe {
             drop(Box::from_raw(data_ptr));
@@ -227,7 +228,7 @@ pub fn register_config_keyword(
         )));
     }
 
-    // Note: data_ptr is intentionally leaked — it lives for the plugin's
+    // Note: data_ptr is intentionally leaked -- it lives for the plugin's
     // lifetime. The C++ bridge stores the pointer in a global map.
     Ok(())
 }

@@ -3,7 +3,8 @@ use crate::types::common::{WindowAddress, WorkspaceId};
 /// A parsed Hyprland event from the Socket2 event stream.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
-    // -- Workspace events ----------------------------------------------------
+    // Workspace events are grouped together because they share the same ID/name semantics
+    // and v1/v2 pairing pattern that Hyprland uses for backward compatibility.
     /// Active workspace changed.
     Workspace {
         name: String,
@@ -44,7 +45,8 @@ pub enum Event {
         new_name: String,
     },
 
-    // -- Monitor events ------------------------------------------------------
+    // Monitor events are separate from workspace events because they track hardware topology
+    // (hotplug/unplug) rather than logical workspace state.
     /// Monitor focus changed.
     FocusedMon {
         monitor: String,
@@ -73,7 +75,8 @@ pub enum Event {
         description: String,
     },
 
-    // -- Special workspace events --------------------------------------------
+    // Special workspaces (scratchpads) have distinct toggle semantics: they exist per-monitor
+    // and can be shown/hidden independently, unlike regular workspace switches.
     /// Special workspace toggled.
     ActiveSpecial {
         name: String,
@@ -85,7 +88,8 @@ pub enum Event {
         monitor: String,
     },
 
-    // -- Window events -------------------------------------------------------
+    // Window lifecycle events (open/close/move/focus/title) are the most common IPC events.
+    // They carry WindowAddress for precise identification across workspace moves.
     /// Active window changed.
     ActiveWindow {
         class: String,
@@ -124,7 +128,8 @@ pub enum Event {
         workspace_name: String,
     },
 
-    // -- Window state events -------------------------------------------------
+    // Window state toggles are separate from lifecycle events because they represent transient
+    // property changes (fullscreen, floating, pin) on already-open windows.
     /// Fullscreen state changed.
     Fullscreen {
         enabled: bool,
@@ -149,7 +154,8 @@ pub enum Event {
         pinned: bool,
     },
 
-    // -- Group events --------------------------------------------------------
+    // Group (tabbed window) events form their own category because group membership affects
+    // layout and rendering independently of individual window state.
     /// Window group toggled.
     ToggleGroup {
         state: bool,
@@ -172,7 +178,8 @@ pub enum Event {
         enabled: bool,
     },
 
-    // -- Layer events --------------------------------------------------------
+    // Layer shell surfaces (panels, overlays) live outside the tiling layout and use namespace
+    // strings instead of window addresses for identification.
     /// Layer surface opened.
     OpenLayer {
         namespace: String,
@@ -182,7 +189,8 @@ pub enum Event {
         namespace: String,
     },
 
-    // -- Input events --------------------------------------------------------
+    // Input events (layout changes, submap switches) are per-device and affect keybinding
+    // behavior, so they're grouped separately from window or compositor state.
     /// Keyboard layout changed.
     ActiveLayout {
         keyboard: String,
@@ -193,7 +201,8 @@ pub enum Event {
         name: String,
     },
 
-    // -- Misc events ---------------------------------------------------------
+    // Miscellaneous events that don't fit other categories. Unknown preserves unrecognized
+    // event names for forward compatibility with newer Hyprland releases.
     /// Bell notification.
     Bell {
         address: String,

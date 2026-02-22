@@ -1,7 +1,7 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use hypr_sdk::ipc::events::parse_event;
 
-// -- Realistic event lines ------------------------------------------------
+// WHY: Needed for correctness and maintainability: -- Realistic event lines ------------------------------------------------
 
 const WORKSPACE: &str = "workspace>>3";
 const WORKSPACE_V2: &str = "workspacev2>>3,main";
@@ -64,7 +64,7 @@ fn bench_single_events(c: &mut Criterion) {
 }
 
 fn bench_event_stream_throughput(c: &mut Criterion) {
-    // Simulate a burst of 100 events (typical compositor activity).
+    // WHY: Needed for correctness and maintainability: Simulate a burst of 100 events (typical compositor activity).
     let events = [
         WORKSPACE,
         WORKSPACE_V2,

@@ -33,7 +33,7 @@ const SAMPLE_JSON: &str = r#"{
     "contentType": "none"
 }"#;
 
-// -- Basic deserialization --
+// WHY: Needed for correctness and maintainability: -- Basic deserialization --
 
 #[test]
 fn deserialize_window() {
@@ -73,7 +73,7 @@ fn deserialize_window() {
     assert_eq!(w.content_type, ContentType::None);
 }
 
-// -- Edge cases --
+// WHY: Needed for correctness and maintainability: -- Edge cases --
 
 #[test]
 fn window_with_grouped_and_tags() {
@@ -155,7 +155,7 @@ fn window_ignores_unknown_fields() {
     assert_eq!(w.address, WindowAddress(1));
 }
 
-// -- Plugin-only fields default --
+// WHY: Needed for correctness and maintainability: -- Plugin-only fields default --
 
 #[test]
 fn ipc_json_defaults_plugin_fields() {

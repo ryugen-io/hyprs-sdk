@@ -196,12 +196,14 @@ impl ExtWorkspaceClient {
             ));
         }
 
-        // Roundtrip to receive workspace_group and workspace events.
+        // The manager sends workspace_group and workspace events asynchronously after
+        // binding; a roundtrip collects the child objects before querying properties.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Extra roundtrip for workspace name/state/done events.
+        // Property events (name, state, done) arrive on the workspace handles from the
+        // previous roundtrip; an extra roundtrip collects them all.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -293,7 +295,8 @@ impl fmt::Debug for ExtWorkspaceClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks workspace groups and individual workspaces with their properties.
 
 struct ExtWorkspaceState {
     manager: Option<ext_workspace_manager_v1::ExtWorkspaceManagerV1>,
@@ -326,7 +329,9 @@ impl ExtWorkspaceState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ExtWorkspaceState {
     fn event(
@@ -384,16 +389,18 @@ impl Dispatch<ext_workspace_manager_v1::ExtWorkspaceManagerV1, ()> for ExtWorksp
                 });
             }
             ext_workspace_manager_v1::Event::Done => {
-                // Batch update complete.
+                // The protocol batches updates and signals completion with "done";
+                // no action needed here since we read state after roundtrip.
             }
             _ => {}
         }
     }
 
     event_created_child!(ExtWorkspaceState, ext_workspace_manager_v1::ExtWorkspaceManagerV1, [
-        // Opcode 0 = workspace_group event creates group handle.
+        // wayland-client dispatches child-object creation by opcode, not name;
+        // opcode 0 is the workspace_group event that spawns a group handle.
         0 => (ext_workspace_group_handle_v1::ExtWorkspaceGroupHandleV1, ()),
-        // Opcode 1 = workspace event creates workspace handle.
+        // Opcode 1 is the workspace event that spawns a workspace handle.
         1 => (ext_workspace_handle_v1::ExtWorkspaceHandleV1, ()),
     ]);
 }
@@ -467,7 +474,8 @@ impl Dispatch<ext_workspace_handle_v1::ExtWorkspaceHandleV1, ()> for ExtWorkspac
     }
 }
 
-// wl_output dispatch needed for workspace group output_enter/output_leave.
+// Dispatch needed because workspace group events can reference wl_output objects
+// (output_enter/output_leave); wayland-client would panic without this impl.
 impl Dispatch<wl_output::WlOutput, ()> for ExtWorkspaceState {
     fn event(
         _state: &mut Self,
@@ -477,6 +485,6 @@ impl Dispatch<wl_output::WlOutput, ()> for ExtWorkspaceState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Output events not needed for workspace management.
+        // We don't track output properties; we only need the Dispatch impl to avoid panics.
     }
 }

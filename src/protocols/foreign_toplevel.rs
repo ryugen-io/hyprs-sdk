@@ -210,7 +210,8 @@ impl ForeignToplevelClient {
 
         let mut state = ForeignToplevelState::new();
 
-        // Registry roundtrip: bind manager + seat.
+        // Wayland events arrive asynchronously; roundtrip ensures the manager and
+        // seat globals are bound before we use them.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -222,12 +223,14 @@ impl ForeignToplevelClient {
             ));
         }
 
-        // Second roundtrip: receive toplevel handle events from manager.
+        // The manager sends toplevel events asynchronously after binding; a second
+        // roundtrip is needed to receive the handle objects for all open windows.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Third roundtrip: receive property events (title, app_id, state, done).
+        // Property events (title, app_id, state) arrive on the handles created in
+        // the previous roundtrip; a third roundtrip collects them all.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -310,7 +313,9 @@ impl fmt::Debug for ForeignToplevelClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks toplevel handles and their properties across roundtrips. Each handle
+// accumulates title/app_id/state events until a "done" event commits them.
 
 struct ForeignToplevelState {
     manager: Option<zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1>,
@@ -339,7 +344,9 @@ impl ForeignToplevelState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ForeignToplevelState {
     fn event(
@@ -385,7 +392,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for ForeignToplevelState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // We only need the seat for activate requests; ignore events.
+        // We only need the seat proxy for activate requests; its events are irrelevant.
     }
 }
 
@@ -414,14 +421,16 @@ impl Dispatch<zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1, ()
                 });
             }
             zwlr_foreign_toplevel_manager_v1::Event::Finished => {
-                // Manager is going away; no new toplevels will arrive.
+                // The compositor is shutting down this manager instance; no further
+                // toplevel events will arrive.
             }
             _ => {}
         }
     }
 
     event_created_child!(ForeignToplevelState, zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1, [
-        // Opcode 0 = toplevel event creates a new handle object.
+        // wayland-client dispatches child-object creation by opcode, not name;
+        // opcode 0 is the toplevel event that spawns a new handle.
         0 => (zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1, ()),
     ]);
 }
@@ -451,7 +460,8 @@ impl Dispatch<zwlr_foreign_toplevel_handle_v1::ZwlrForeignToplevelHandleV1, ()>
                 zwlr_foreign_toplevel_handle_v1::Event::Closed => {
                     entry.closed = true;
                 }
-                // Done, OutputEnter, OutputLeave, Parent — ignored.
+                // Done, OutputEnter, OutputLeave, Parent are informational events we
+                // don't need for the basic list-and-control API.
                 _ => {}
             }
         }
@@ -467,6 +477,7 @@ impl Dispatch<wl_output::WlOutput, ()> for ForeignToplevelState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Output events not needed for foreign toplevel management.
+        // Dispatch impl required by wayland-client because toplevel handles can
+        // reference wl_output objects; we don't need the output events themselves.
     }
 }

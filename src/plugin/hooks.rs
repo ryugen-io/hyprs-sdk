@@ -16,7 +16,8 @@
 /// be cast to the appropriate type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HookEvent {
-    // ── Lifecycle & Config ───────────────────────────────────────────
+    // Lifecycle hooks fire during compositor startup and config changes, letting plugins
+    // initialize state after Hyprland is ready and react to configuration updates.
     /// Compositor is fully initialized and ready.
     /// Data: `nullptr`
     Ready,
@@ -33,7 +34,8 @@ pub enum HookEvent {
     /// Data: `nullptr`
     ConfigReloaded,
 
-    // ── Monitor Events ───────────────────────────────────────────────
+    // Monitor hooks cover the full lifecycle of display outputs, from creation through
+    // removal, so plugins can track multi-monitor state and render per-output content.
     /// Before a monitor is added to the layout.
     /// Data: `PHLMONITOR`
     PreMonitorAdded,
@@ -66,7 +68,8 @@ pub enum HookEvent {
     /// Data: `PHLMONITOR`
     FocusedMon,
 
-    // ── Workspace Events ─────────────────────────────────────────────
+    // Workspace hooks let plugins react to virtual desktop changes (creation, destruction,
+    // movement between monitors) for workspace-aware UI elements like bars and overviews.
     /// Active workspace changed.
     /// Data: `PHLWORKSPACE`
     Workspace,
@@ -83,7 +86,8 @@ pub enum HookEvent {
     /// Data: `std::vector<std::any>{PHLWORKSPACE, PHLMONITOR}`
     MoveWorkspace,
 
-    // ── Window Events ────────────────────────────────────────────────
+    // Window hooks span the full window lifecycle and state changes. Plugins use these
+    // for window management, decoration updates, and focus tracking.
     /// Window is about to be mapped (early, before rules applied).
     /// Data: `PHLWINDOW`
     OpenWindowEarly,
@@ -132,7 +136,8 @@ pub enum HookEvent {
     /// Data: `PHLWINDOW`
     WindowUpdateRules,
 
-    // ── Layer Surface Events ─────────────────────────────────────────
+    // Layer surface hooks fire for panels, overlays, and other wlr-layer-shell surfaces,
+    // enabling plugins to react to status bars, lock screens, and notification popups.
     /// Layer surface (panel/overlay) opened.
     /// Data: `PHLLS`
     OpenLayer,
@@ -141,7 +146,8 @@ pub enum HookEvent {
     /// Data: `PHLLS`
     CloseLayer,
 
-    // ── Focus & Input (non-cancellable) ──────────────────────────────
+    // Non-cancellable focus and input hooks are informational only -- plugins observe
+    // keyboard focus, layout, and submap changes but cannot block them.
     /// Keyboard focus surface changed. Data is `nullptr` when focus lost.
     /// Data: `SP<CWLSurfaceResource>` or `nullptr`
     KeyboardFocus,
@@ -154,7 +160,8 @@ pub enum HookEvent {
     /// Data: `std::string` (submap name)
     Submap,
 
-    // ── Rendering ────────────────────────────────────────────────────
+    // Rendering hooks fire during the draw loop, allowing plugins to inject custom
+    // OpenGL draw calls at specific render stages (e.g. overlays, effects).
     /// Render stage event. Use `RenderStage` to determine which phase.
     /// Data: `eRenderStage`
     Render,
@@ -163,12 +170,14 @@ pub enum HookEvent {
     /// Data: `PHLMONITOR`
     PreRender,
 
-    // ── Screencopy ───────────────────────────────────────────────────
+    // Screencopy hooks notify plugins when screen recording or screenshot clients
+    // connect/disconnect, so plugins can adjust rendering (e.g. hide sensitive content).
     /// Screencopy/toplevel-export state changed.
     /// Data: `std::vector<uint64_t>{active, frame_count, client_id}`
     Screencast,
 
-    // ── Cancellable Input Events ─────────────────────────────────────
+    // Cancellable input events allow plugins to intercept and consume input before
+    // Hyprland processes it -- setting `cancelled = true` blocks further propagation.
     /// Key pressed. Set `cancelled = true` to consume.
     /// Data: `std::unordered_map<std::string, std::any>`
     KeyPress,
@@ -231,7 +240,7 @@ impl HookEvent {
     #[must_use]
     pub fn event_name(&self) -> &'static str {
         match self {
-            // Lifecycle
+            // Lifecycle & Config
             Self::Ready => "ready",
             Self::Tick => "tick",
             Self::PreConfigReload => "preConfigReload",

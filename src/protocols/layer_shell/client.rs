@@ -57,7 +57,8 @@ impl LayerShellClient {
             ));
         }
 
-        // Second roundtrip to receive wl_output name events.
+        // Output name events arrive asynchronously after binding; a second roundtrip
+        // collects them so we can resolve output names in create_surface.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -110,7 +111,8 @@ impl LayerShellClient {
             .as_ref()
             .ok_or_else(|| HyprError::WaylandDispatch("no wl_compositor available".into()))?;
 
-        // Resolve the output.
+        // Layer surfaces can target a specific output; resolve name to proxy now
+        // so the compositor places the surface on the correct monitor.
         let output = if let Some(name) = output_name {
             let entry = state
                 .outputs
@@ -122,10 +124,11 @@ impl LayerShellClient {
             None
         };
 
-        // Create the wl_surface.
+        // Layer shell requires a wl_surface to attach the layer role to.
         let surface = compositor.create_surface(qh, ());
 
-        // Create the layer surface.
+        // Binding a layer surface assigns the layer role; the compositor uses
+        // layer + namespace to determine stacking order and exclusion zones.
         let layer_surface = layer_shell.get_layer_surface(
             &surface,
             output,
@@ -135,7 +138,8 @@ impl LayerShellClient {
             (),
         );
 
-        // Configure the layer surface properties.
+        // All geometry properties must be set before the first commit so the
+        // compositor can calculate the correct configure dimensions.
         layer_surface.set_size(config.width, config.height);
         layer_surface.set_anchor(config.anchor.to_protocol());
         layer_surface.set_exclusive_zone(config.exclusive_zone);
@@ -147,21 +151,26 @@ impl LayerShellClient {
             config.margin_left,
         );
 
-        // Initial commit (no buffer) to trigger configure.
+        // The protocol requires an initial bufferless commit to signal the compositor
+        // that setup is complete; it responds with a configure event containing the
+        // negotiated dimensions.
         surface.commit();
 
-        // Reset configure state.
+        // Clear stale configure state from any previous surface creation so we
+        // only read the configure event for this new surface.
         state.configure_width = None;
         state.configure_height = None;
         state.configure_serial = None;
         state.surface_closed = false;
 
-        // Roundtrip to receive the configure event.
+        // The configure event arrives asynchronously after the initial commit;
+        // roundtrip ensures it is dispatched before we read the negotiated size.
         event_queue
             .roundtrip(state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Ack the configure if received.
+        // The protocol requires acknowledging each configure before attaching
+        // buffers; without ack the compositor will not display the surface.
         if let Some(serial) = state.configure_serial.take() {
             layer_surface.ack_configure(serial);
         }

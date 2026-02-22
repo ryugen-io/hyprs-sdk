@@ -101,7 +101,8 @@ impl IdleClient {
 
         let mut state = IdleNotifyState::new();
 
-        // Registry roundtrip: bind notifier + seat.
+        // Wayland events arrive asynchronously; roundtrip ensures the notifier and
+        // seat globals are bound before we create the notification.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -118,7 +119,8 @@ impl IdleClient {
 
         let _notification = notifier.get_idle_notification(config.timeout_ms(), seat, &qh, ());
 
-        // Roundtrip to start receiving idle/resumed events.
+        // The compositor sends idle/resumed events asynchronously after the notification
+        // is created; roundtrip ensures we have the initial state.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -156,7 +158,8 @@ impl fmt::Debug for IdleClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks the notifier, seat, and current idle/active state.
 
 struct IdleNotifyState {
     notifier: Option<ext_idle_notifier_v1::ExtIdleNotifierV1>,
@@ -174,7 +177,9 @@ impl IdleNotifyState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for IdleNotifyState {
     fn event(
@@ -221,7 +226,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for IdleNotifyState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Seat events not needed.
+        // We only need the seat proxy for notification creation; its events are irrelevant.
     }
 }
 
@@ -234,7 +239,7 @@ impl Dispatch<ext_idle_notifier_v1::ExtIdleNotifierV1, ()> for IdleNotifyState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Notifier has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

@@ -9,7 +9,9 @@ use wayland_protocols_wlr::data_control::v1::client::{
 
 use super::state::{DataControlState, OfferEntry};
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for DataControlState {
     fn event(
@@ -57,7 +59,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for DataControlState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Seat events not needed.
+        // We only need the seat to create the data device; its events are irrelevant.
     }
 }
 
@@ -70,7 +72,7 @@ impl Dispatch<zwlr_data_control_manager_v1::ZwlrDataControlManagerV1, ()> for Da
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -85,14 +87,16 @@ impl Dispatch<zwlr_data_control_device_v1::ZwlrDataControlDeviceV1, ()> for Data
     ) {
         match event {
             zwlr_data_control_device_v1::Event::DataOffer { id } => {
-                // New offer introduced — start accumulating MIME types.
+                // The compositor introduces a new offer before setting the selection;
+                // start accumulating MIME types for it.
                 state.pending_offer = Some(OfferEntry {
                     proxy: id,
                     mime_types: Vec::new(),
                 });
             }
             zwlr_data_control_device_v1::Event::Selection { id } => {
-                // Clipboard selection changed.
+                // The compositor is telling us the clipboard selection changed; promote
+                // the pending offer to the active clipboard offer.
                 if id.is_some() {
                     state.clipboard_offer = state.pending_offer.take();
                 } else {
@@ -114,7 +118,8 @@ impl Dispatch<zwlr_data_control_device_v1::ZwlrDataControlDeviceV1, ()> for Data
     }
 
     event_created_child!(DataControlState, zwlr_data_control_device_v1::ZwlrDataControlDeviceV1, [
-        // Opcode 0 = data_offer event creates a new offer object.
+        // wayland-client dispatches child-object creation by opcode, not name;
+        // opcode 0 is the data_offer event that spawns a new offer.
         0 => (zwlr_data_control_offer_v1::ZwlrDataControlOfferV1, ()),
     ]);
 }
@@ -129,14 +134,15 @@ impl Dispatch<zwlr_data_control_offer_v1::ZwlrDataControlOfferV1, ()> for DataCo
         _qh: &QueueHandle<Self>,
     ) {
         if let zwlr_data_control_offer_v1::Event::Offer { mime_type } = event {
-            // Add MIME type to the pending offer.
+            // Accumulate MIME types on the pending offer first (most common case).
             if let Some(ref mut offer) = state.pending_offer
                 && offer.proxy == *proxy
             {
                 offer.mime_types.push(mime_type);
                 return;
             }
-            // Also check active offers in case of late events.
+            // Late MIME type events can arrive after the offer has been promoted;
+            // check active offers as a fallback.
             if let Some(ref mut offer) = state.clipboard_offer
                 && offer.proxy == *proxy
             {

@@ -105,7 +105,8 @@ pub fn current_instance() -> HyprResult<Instance> {
     parse_instance(&dir).ok_or(HyprError::InstanceNotFound(sig))
 }
 
-// -- Internal ----------------------------------------------------------------
+// Parsing and validation internals: hyprland.lock format is undocumented, so we defensively
+// check structure (exactly 2 lines, underscore in signature) to avoid misidentifying stale files.
 
 fn parse_instance(dir: &std::path::Path) -> Option<Instance> {
     let lock_path = dir.join("hyprland.lock");
@@ -115,14 +116,15 @@ fn parse_instance(dir: &std::path::Path) -> Option<Instance> {
     let pid: u64 = lines.next()?.parse().ok()?;
     let wayland_socket = lines.next()?.to_string();
 
-    // Lock file should have exactly 2 lines.
+    // Hyprland writes exactly PID + wayland-socket; extra content means a corrupt or foreign lock file.
     if lines.next().is_some_and(|l| !l.is_empty()) {
         return None;
     }
 
     let signature = dir.file_name()?.to_str()?.to_string();
 
-    // Validate signature format: must contain underscores.
+    // Hyprland signatures are formatted as `{timestamp}_{PID}_{random}`; no underscore means this
+    // directory is not a Hyprland instance (e.g. user-created or from another compositor).
     if !signature.contains('_') {
         return None;
     }
@@ -135,6 +137,6 @@ fn parse_instance(dir: &std::path::Path) -> Option<Instance> {
 }
 
 fn is_pid_alive(pid: u64) -> bool {
-    // Check /proc/{pid} existence — works for any process regardless of owner.
+    // /proc/{pid} exists iff the process is alive; this avoids kill(pid, 0) which requires same-uid or CAP_KILL.
     fs::metadata(format!("/proc/{pid}")).is_ok()
 }

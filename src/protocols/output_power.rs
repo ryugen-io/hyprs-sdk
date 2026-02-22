@@ -99,7 +99,7 @@ impl OutputPowerClient {
     /// Returns [`HyprError::ProtocolNotSupported`] if the compositor
     /// doesn't advertise `zwlr_output_power_manager_v1`.
     pub fn connect(wl: &WaylandConnection) -> HyprResult<Self> {
-        // Check protocol support upfront.
+        // Fail fast before spending time on roundtrips if the compositor lacks this protocol.
         if !wl.has_protocol("zwlr_output_power_manager_v1") {
             return Err(HyprError::ProtocolNotSupported(
                 "zwlr_output_power_manager_v1".into(),
@@ -113,13 +113,15 @@ impl OutputPowerClient {
 
         let mut state = OutputPowerState::new();
 
-        // Get registry and roundtrip to discover globals + bind outputs and manager.
+        // Wayland events arrive asynchronously; roundtrip ensures all outputs and the
+        // manager global are bound before we use them.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Second roundtrip to receive wl_output events (name, done).
+        // Output name events arrive on the wl_output objects bound in the previous
+        // roundtrip; a second roundtrip collects them so we can identify outputs by name.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -128,7 +130,8 @@ impl OutputPowerClient {
             HyprError::ProtocolNotSupported("zwlr_output_power_manager_v1".into())
         })?;
 
-        // Create power control objects for each output.
+        // Each output needs its own power control handle to query/set its DPMS state
+        // independently.
         for output_entry in &state.outputs {
             let control = manager.get_output_power(&output_entry.output, &qh, output_entry.name);
             state.powers.push(PowerControlEntry {
@@ -139,7 +142,8 @@ impl OutputPowerClient {
             });
         }
 
-        // Roundtrip to receive initial mode events.
+        // The compositor sends the initial power mode asynchronously after the control
+        // object is created; roundtrip ensures we have it before returning.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -204,7 +208,8 @@ impl OutputPowerClient {
         };
         power._control.set_mode(protocol_mode);
 
-        // Roundtrip to confirm.
+        // Roundtrip to ensure the compositor has processed the mode change and any
+        // resulting mode/failed events have been delivered.
         let Self { state, event_queue } = self;
         event_queue
             .roundtrip(state)
@@ -235,7 +240,8 @@ impl fmt::Debug for OutputPowerClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks outputs, their names, and per-output power control handles.
 
 struct OutputPowerState {
     manager: Option<zwlr_output_power_manager_v1::ZwlrOutputPowerManagerV1>,
@@ -266,7 +272,9 @@ impl OutputPowerState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for OutputPowerState {
     fn event(
@@ -340,7 +348,7 @@ impl Dispatch<zwlr_output_power_manager_v1::ZwlrOutputPowerManagerV1, ()> for Ou
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

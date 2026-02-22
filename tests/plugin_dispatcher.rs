@@ -17,7 +17,7 @@ fn dispatch_result_constructors() {
 
 #[test]
 fn dispatcher_fn_type_check() {
-    // Verify DispatcherFn is a valid type alias that can hold a closure.
+    // WHY: Needed for correctness and maintainability: Verify DispatcherFn is a valid type alias that can hold a closure.
     let _f: DispatcherFn = Box::new(|args| {
         let _ = args;
         DispatchResult::ok()

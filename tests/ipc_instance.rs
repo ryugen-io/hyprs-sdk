@@ -2,7 +2,7 @@ use hypr_sdk::ipc::instance::{runtime_dir, socket1_path, socket2_path};
 
 #[test]
 fn runtime_dir_uses_xdg() {
-    // This test just verifies the function returns a path ending in /hypr
+    // WHY: Needed for correctness and maintainability: This test just verifies the function returns a path ending in /hypr
     let dir = runtime_dir();
     assert!(
         dir.ends_with("/hypr"),

@@ -73,7 +73,7 @@ fn workspace_ignores_unknown_fields() {
 
 #[test]
 fn ipc_json_defaults_plugin_fields() {
-    // IPC JSON doesn't include plugin-only fields; they should default.
+    // WHY: Needed for correctness and maintainability: IPC JSON doesn't include plugin-only fields; they should default.
     let ws: Workspace = serde_json::from_str(SAMPLE_JSON).unwrap();
     assert_eq!(ws.fullscreen_mode, FullscreenMode::None);
     assert!(!ws.is_special);

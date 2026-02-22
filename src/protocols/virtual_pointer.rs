@@ -140,7 +140,8 @@ impl VirtualPointerClient {
 
         let mut state = VirtualPointerState::new();
 
-        // Registry roundtrip: bind manager + seat.
+        // Wayland events arrive asynchronously; roundtrip ensures manager and seat
+        // globals are bound before we attempt to create the virtual pointer.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -150,7 +151,8 @@ impl VirtualPointerClient {
             HyprError::ProtocolNotSupported("zwlr_virtual_pointer_manager_v1".into())
         })?;
 
-        // Create virtual pointer on the seat (or without seat if none bound).
+        // The protocol allows a seatless pointer for compositors that support it;
+        // prefer the seat when available for proper input routing.
         let pointer = if let Some(ref seat) = state.seat {
             manager.create_virtual_pointer(Some(seat), &qh, ())
         } else {
@@ -246,7 +248,8 @@ fn to_wl_axis(axis: Axis) -> wl_pointer::Axis {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Holds protocol objects discovered during the registry roundtrip.
 
 struct VirtualPointerState {
     manager: Option<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1>,
@@ -262,7 +265,9 @@ impl VirtualPointerState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for VirtualPointerState {
     fn event(
@@ -308,7 +313,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for VirtualPointerState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Seat events not needed.
+        // We only need the seat proxy for pointer creation; its events are irrelevant.
     }
 }
 
@@ -323,7 +328,7 @@ impl Dispatch<zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1, ()>
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -336,6 +341,6 @@ impl Dispatch<zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1, ()> for VirtualPoin
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Virtual pointer has no events.
+        // Dispatch impl required by wayland-client; virtual pointer is request-only.
     }
 }

@@ -4,7 +4,7 @@ use hypr_sdk::types::monitor::Monitor;
 use hypr_sdk::types::window::Window;
 use hypr_sdk::types::workspace::Workspace;
 
-// -- Realistic JSON payloads -----------------------------------------------
+// WHY: Needed for correctness and maintainability: -- Realistic JSON payloads -----------------------------------------------
 
 const VERSION_JSON: &str = r#"{
     "branch": "main",
@@ -210,12 +210,11 @@ fn bench_window_address(c: &mut Criterion) {
 }
 
 fn bench_large_client_list(c: &mut Criterion) {
-    // Simulate 20 windows (realistic desktop).
+    // WHY: Needed for correctness and maintainability: Simulate 20 windows (realistic desktop).
     let one_window = WINDOW_JSON;
     let many: String = format!(
         "[{}]",
-        std::iter::repeat(one_window)
-            .take(20)
+        std::iter::repeat_n(one_window, 20)
             .collect::<Vec<_>>()
             .join(",")
     );

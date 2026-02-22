@@ -66,7 +66,7 @@ fn main() {
 
         build.compile("hyprland_bridge");
 
-        // Tell cargo to re-run if bridge source changes.
+        // WHY: Needed for correctness and maintainability: Tell cargo to re-run if bridge source changes.
         println!("cargo:rerun-if-changed={bridge_dir}/common.h");
         for file in &bridge_files {
             println!("cargo:rerun-if-changed={bridge_dir}/{file}");

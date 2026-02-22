@@ -217,21 +217,18 @@ pub trait WindowDecoration: Send + 'static {
     }
 }
 
-// ── Internal: fat-pointer wrapper ────────────────────────────────────
-//
-// `Box<dyn WindowDecoration>` is a fat pointer (2 words) that can't
-// round-trip through a single `*mut c_void`. We box it once more to get
-// a thin `*mut DecorationData` that safely passes through C.
+// `Box<dyn WindowDecoration>` is a fat pointer (2 words) that can't round-trip through
+// a single `*mut c_void`. We box it once more to get a thin `*mut DecorationData` that
+// safely passes through the C FFI boundary.
 
 struct DecorationData {
     inner: Box<dyn WindowDecoration>,
 }
 
-// ── Trampolines ─────────────────────────────────────────────────────
-//
-// Each function is called by the C++ RustDecorationBridge via the
-// DecorationVtable. `rust_deco` is always `*mut DecorationData`
-// created in `register_decoration`.
+// Trampolines bridge C++ virtual method calls back into Rust trait methods. The C++
+// RustDecorationBridge holds a `rust_deco` pointer (*mut DecorationData) and a vtable;
+// each trampoline casts the opaque pointer back to DecorationData and dispatches to the
+// inner WindowDecoration trait impl.
 
 unsafe extern "C" fn trampoline_get_positioning_info(
     rust_deco: *mut c_void,
@@ -373,7 +370,8 @@ pub unsafe fn register_decoration(
         unsafe { ffi::add_window_decoration(handle.0, window_handle, data_ptr, &vtable) };
 
     if bridge_ptr.is_null() {
-        // The C++ bridge handled cleanup of data_ptr via vtable.drop.
+        // No Rust-side cleanup needed: the C++ bridge destructor already called vtable.drop
+        // to reclaim data_ptr, so we avoid a double-free.
         Err(HyprError::Plugin("failed to register decoration".into()))
     } else {
         Ok(DecorationHandle(bridge_ptr))

@@ -3,7 +3,7 @@ use hypr_sdk::protocols::output_power::PowerMode;
 
 #[test]
 fn power_mode_variants() {
-    // Protocol defines Off=0, On=1
+    // WHY: Needed for correctness and maintainability: Protocol defines Off=0, On=1
     assert_eq!(PowerMode::Off as u32, 0);
     assert_eq!(PowerMode::On as u32, 1);
 }

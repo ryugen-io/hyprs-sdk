@@ -193,6 +193,7 @@ fn decorations_with_flags() {
 
 #[test]
 fn remaining_query_commands_with_json_flag() {
+    #[allow(clippy::type_complexity)]
     let cases: &[(fn(Flags) -> String, &str)] = &[
         (commands::workspaces, "workspaces"),
         (commands::workspace_rules, "workspacerules"),

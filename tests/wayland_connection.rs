@@ -4,9 +4,9 @@ use hypr_sdk::protocols::connection::{GlobalInfo, WaylandConnection};
 
 #[test]
 fn connect_fails_without_display() {
-    // Remove WAYLAND_DISPLAY to force failure.
+    // WHY: Needed for correctness and maintainability: Remove WAYLAND_DISPLAY to force failure.
     // SAFETY: This test is not run in parallel with other tests that depend
-    // on these environment variables.
+    // WHY: Needed for correctness and maintainability: on these environment variables.
     unsafe {
         std::env::remove_var("WAYLAND_DISPLAY");
         std::env::remove_var("XDG_RUNTIME_DIR");

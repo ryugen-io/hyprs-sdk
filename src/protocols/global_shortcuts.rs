@@ -204,7 +204,8 @@ impl fmt::Debug for GlobalShortcutsClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks registered shortcuts and accumulates press/release events between polls.
 
 struct GlobalShortcutsState {
     manager: Option<hyprland_global_shortcuts_manager_v1::HyprlandGlobalShortcutsManagerV1>,
@@ -227,7 +228,9 @@ impl GlobalShortcutsState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for GlobalShortcutsState {
     fn event(
@@ -269,7 +272,7 @@ impl Dispatch<hyprland_global_shortcuts_manager_v1::HyprlandGlobalShortcutsManag
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

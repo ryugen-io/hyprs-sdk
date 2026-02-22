@@ -40,7 +40,7 @@ const SAMPLE_JSON: &str = r#"{
     "sdrMaxLuminance": 80
 }"#;
 
-// -- Basic deserialization --
+// WHY: Needed for correctness and maintainability: -- Basic deserialization --
 
 #[test]
 fn deserialize_monitor() {
@@ -97,7 +97,7 @@ fn deserialize_monitor() {
     assert_eq!(m.sdr_max_luminance, 80);
 }
 
-// -- Edge cases --
+// WHY: Needed for correctness and maintainability: -- Edge cases --
 
 #[test]
 fn monitor_ignores_unknown_fields() {
@@ -114,7 +114,7 @@ fn monitor_array() {
     assert_eq!(monitors.len(), 1);
 }
 
-// -- Plugin-only fields default --
+// WHY: Needed for correctness and maintainability: -- Plugin-only fields default --
 
 #[test]
 fn ipc_json_defaults_plugin_fields() {

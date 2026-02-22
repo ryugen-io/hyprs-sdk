@@ -13,7 +13,8 @@ use super::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
 /// Fields only available via the plugin API are `#[serde(default)]`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Workspace {
-    // -- IPC JSON fields (from HyprCtl getWorkspaceData) ---------------------
+    // These fields come from hyprctl's JSON output (getWorkspaceData). They are the
+    // stable public API and always present in IPC responses.
     /// Workspace ID. Positive = regular, negative = special/name-based.
     pub id: WorkspaceId,
 
@@ -46,7 +47,9 @@ pub struct Workspace {
     #[serde(rename = "ispersistent")]
     pub is_persistent: bool,
 
-    // -- Fields from CWorkspace (plugin API) ---------------------------------
+    // Plugin API fields come from CWorkspace internals and are only populated when
+    // accessed through the Hyprland plugin interface. They default so that standard
+    // IPC deserialization works without these keys present.
     /// Current fullscreen mode of the workspace.
     #[serde(default)]
     pub fullscreen_mode: FullscreenMode,

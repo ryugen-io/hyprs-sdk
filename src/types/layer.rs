@@ -14,7 +14,8 @@ use super::common::WindowAddress;
 /// Combines fields from IPC JSON and the internal `CLayerSurface` struct.
 #[derive(Debug, Clone, Deserialize)]
 pub struct LayerSurface {
-    // -- IPC JSON fields -----------------------------------------------------
+    // These fields come from hyprctl's JSON output (layers query). They are the stable
+    // public API and always present in IPC responses.
     /// Unique address of this layer surface.
     pub address: WindowAddress,
 
@@ -36,7 +37,9 @@ pub struct LayerSurface {
     /// Process ID of the owning application.
     pub pid: i32,
 
-    // -- Fields from CLayerSurface (plugin API) ------------------------------
+    // Plugin API fields come from CLayerSurface internals and are only populated when
+    // accessed through the Hyprland plugin interface, not standard IPC JSON.
+    // They default so that IPC deserialization works without these keys present.
     /// Layer level (0=background, 1=bottom, 2=top, 3=overlay).
     #[serde(default)]
     pub layer: u32,

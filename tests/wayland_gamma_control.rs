@@ -27,7 +27,7 @@ fn gamma_table_brightness() {
 #[test]
 fn gamma_table_gamma_correction() {
     let table = gamma_control::GammaTable::with_gamma(256, 2.2);
-    // Gamma > 1 darkens midtones
+    // WHY: Needed for correctness and maintainability: Gamma > 1 darkens midtones
     let mid = table.red[128];
     let identity_mid = gamma_control::GammaTable::identity(256).red[128];
     assert!(mid < identity_mid);

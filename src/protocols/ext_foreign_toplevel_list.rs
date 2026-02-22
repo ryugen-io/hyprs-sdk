@@ -83,7 +83,8 @@ impl ExtForeignToplevelListClient {
 
         let mut state = ExtForeignToplevelListState::new();
 
-        // Registry roundtrip: bind manager.
+        // Wayland events arrive asynchronously; roundtrip ensures the manager
+        // global is bound before we use it.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -95,12 +96,14 @@ impl ExtForeignToplevelListClient {
             ));
         }
 
-        // Second roundtrip: receive toplevel handle events from manager.
+        // The manager sends toplevel events asynchronously after binding; a second
+        // roundtrip is needed to receive the handle objects for all open windows.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Third roundtrip: receive property events (title, app_id, identifier, done).
+        // Property events (title, app_id, identifier) arrive on handles created in
+        // the previous roundtrip; a third roundtrip collects them all.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -149,7 +152,8 @@ impl fmt::Debug for ExtForeignToplevelListClient {
     }
 }
 
-// -- Internal state -----------------------------------------------------------
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks toplevel handles and their properties across roundtrips.
 
 struct ExtForeignToplevelListState {
     manager: Option<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1>,
@@ -175,7 +179,9 @@ impl ExtForeignToplevelListState {
     }
 }
 
-// -- Dispatch implementations -------------------------------------------------
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ExtForeignToplevelListState {
     fn event(
@@ -235,7 +241,8 @@ impl Dispatch<ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, ()>
     }
 
     event_created_child!(ExtForeignToplevelListState, ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1, [
-        // Opcode 0 = toplevel event creates a new handle object.
+        // wayland-client dispatches child-object creation by opcode, not name;
+        // opcode 0 is the toplevel event that spawns a new handle.
         0 => (ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, ()),
     ]);
 }
@@ -263,7 +270,8 @@ impl Dispatch<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, ()>
                     entry.identifier = identifier;
                 }
                 ext_foreign_toplevel_handle_v1::Event::Done => {
-                    // Batch of property updates complete for this handle.
+                    // The protocol batches property updates and signals completion with "done";
+                    // no action needed here since we read properties after roundtrip.
                 }
                 ext_foreign_toplevel_handle_v1::Event::Closed => {
                     entry.closed = true;

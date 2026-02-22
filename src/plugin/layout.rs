@@ -135,11 +135,9 @@ pub trait Layout: Send + 'static {
     fn predict_size_for_new_window_tiled(&self) -> (f64, f64);
 }
 
-// ── Internal: fat-pointer wrapper ────────────────────────────────────
-//
-// `Box<dyn Layout>` is a fat pointer (2 words) that can't round-trip
-// through a single `*mut c_void`. We box it once more to get a thin
-// `*mut LayoutData` that safely passes through C.
+// `Box<dyn Layout>` is a fat pointer (2 words) that can't round-trip through a single
+// `*mut c_void`. We box it once more to get a thin `*mut LayoutData` that safely passes
+// through the C FFI boundary.
 
 struct LayoutData {
     inner: Box<dyn Layout>,
@@ -164,10 +162,10 @@ fn malloc_copy(data: &[u8]) -> *mut c_char {
     }
 }
 
-// ── Trampolines ─────────────────────────────────────────────────────
-//
-// Each function is called by the C++ RustLayoutBridge via the LayoutVtable.
-// `rust_layout` is always `*mut LayoutData` created in `register_layout`.
+// Trampolines bridge C++ virtual method calls back into Rust trait methods. The C++
+// RustLayoutBridge holds a `rust_layout` pointer (*mut LayoutData) and a vtable;
+// each trampoline casts the opaque pointer back to LayoutData and dispatches to the
+// inner Layout trait impl.
 
 unsafe extern "C" fn trampoline_on_enable(rust_layout: *mut c_void) {
     let data = unsafe { &mut *(rust_layout as *mut LayoutData) };
@@ -421,7 +419,8 @@ pub fn register_layout(
     };
 
     if bridge_ptr.is_null() {
-        // The C++ bridge handled cleanup of data_ptr via vtable.drop.
+        // No Rust-side cleanup needed: the C++ bridge destructor already called vtable.drop
+        // to reclaim data_ptr, so we avoid a double-free.
         Err(HyprError::Plugin(format!(
             "failed to register layout: {name}"
         )))

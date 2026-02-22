@@ -187,7 +187,9 @@ impl fmt::Debug for HyprlandSurfaceClient {
     }
 }
 
-// -- Internal state -----------------------------------------------------------
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks protocol objects discovered during the registry roundtrip so they
+// survive across async event delivery and can be used by client methods.
 
 struct HyprlandSurfaceState {
     manager: Option<hyprland_surface_manager_v1::HyprlandSurfaceManagerV1>,
@@ -203,7 +205,9 @@ impl HyprlandSurfaceState {
     }
 }
 
-// -- Dispatch implementations -------------------------------------------------
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for HyprlandSurfaceState {
     fn event(
@@ -255,7 +259,7 @@ impl Dispatch<hyprland_surface_manager_v1::HyprlandSurfaceManagerV1, ()> for Hyp
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -268,7 +272,7 @@ impl Dispatch<hyprland_surface_v1::HyprlandSurfaceV1, ()> for HyprlandSurfaceSta
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Surface extension has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 
@@ -281,7 +285,7 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for HyprlandSurfaceState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Compositor has no events.
+        // Dispatch impl required by wayland-client; compositor events are unused here.
     }
 }
 
@@ -294,6 +298,7 @@ impl Dispatch<wl_surface::WlSurface, ()> for HyprlandSurfaceState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Surface events not needed for Hyprland surface extensions.
+        // Surface events (enter/leave) are irrelevant for the extensions we use;
+        // Dispatch impl is still required by wayland-client to avoid a panic.
     }
 }

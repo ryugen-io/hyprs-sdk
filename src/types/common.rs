@@ -4,9 +4,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use std::str::FromStr;
 
-// ---------------------------------------------------------------------------
-// ID newtypes
-// ---------------------------------------------------------------------------
+// Newtypes enforce type safety: a WorkspaceId cannot accidentally be passed where a
+// MonitorId is expected, even though both wrap i64. This catches misuse at compile time.
 
 /// Unique address of a Hyprland window (hex pointer value).
 ///
@@ -99,9 +98,8 @@ impl fmt::Display for MonitorId {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Shared compound types
-// ---------------------------------------------------------------------------
+// Compound types like WorkspaceRef appear in Window, Monitor, and other responses.
+// Defining them here avoids duplication and keeps deserialization consistent.
 
 /// Lightweight workspace reference (id + name pair).
 ///
@@ -113,9 +111,8 @@ pub struct WorkspaceRef {
     pub name: String,
 }
 
-// ---------------------------------------------------------------------------
-// Shared enums
-// ---------------------------------------------------------------------------
+// Enums like FullscreenMode and Layer are shared because multiple types reference them
+// (e.g. Window.fullscreen and Workspace.fullscreen_mode both use FullscreenMode).
 
 /// Fullscreen mode flags (bitmask).
 ///

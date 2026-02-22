@@ -94,7 +94,8 @@ impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for LayerShellState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Layer shell manager has no events.
+        // wayland-client requires a Dispatch impl for every object on the event queue;
+        // the layer shell manager is request-only and never emits events.
     }
 }
 
@@ -134,7 +135,8 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for LayerShellState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Compositor has no events.
+        // wayland-client requires a Dispatch impl for every object on the event queue;
+        // wl_compositor is request-only and never emits events.
     }
 }
 
@@ -147,7 +149,8 @@ impl Dispatch<wl_surface::WlSurface, ()> for LayerShellState {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Surface events not needed for layer shell setup.
+        // wayland-client requires a Dispatch impl for every object on the event queue;
+        // wl_surface events (enter/leave) are irrelevant for layer shell lifecycle.
     }
 }
 

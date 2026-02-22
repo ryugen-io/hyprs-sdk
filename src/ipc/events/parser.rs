@@ -10,7 +10,8 @@ pub fn parse_event(line: &str) -> Option<Event> {
 
 fn parse_event_inner(name: &str, data: &str) -> Event {
     match name {
-        // Workspace
+        // Workspace events: v1 passes name only, v2 adds numeric ID. Both must be parsed
+        // because Hyprland emits them simultaneously and clients may subscribe to either.
         "workspace" => Event::Workspace {
             name: data.to_string(),
         },
@@ -64,7 +65,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Monitor
+        // Monitor events: v2 variants include description for hotplug identification
+        // since monitor names alone can be ambiguous across reconnect cycles.
         "focusedmon" => {
             let (monitor, workspace) = split2(data);
             Event::FocusedMon {
@@ -102,7 +104,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Special workspace
+        // Special workspaces (scratchpads): toggled per-monitor, so both name and monitor
+        // are always present in the data payload.
         "activespecial" => {
             let (name, monitor) = split2(data);
             Event::ActiveSpecial {
@@ -119,7 +122,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Window
+        // Window events: openwindow has 4 comma-separated fields (addr,workspace,class,title).
+        // Title can contain commas, so splitn(4,...) is required to avoid splitting the title.
         "activewindow" => {
             let (class, title) = split2(data);
             Event::ActiveWindow {
@@ -168,7 +172,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Window state
+        // Window state toggles: Hyprland encodes booleans as "0"/"1" strings.
+        // Each event carries the address so listeners can update per-window state caches.
         "fullscreen" => Event::Fullscreen {
             enabled: data == "1",
         },
@@ -197,7 +202,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Groups
+        // Group events: togglegroup includes a variable-length list of member addresses
+        // after the state flag, requiring split + filter to handle empty trailing fields.
         "togglegroup" => {
             let (state, rest) = split2(data);
             let addresses = rest
@@ -223,7 +229,7 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             enabled: data == "1",
         },
 
-        // Layer
+        // Layer surface events: data is just the namespace string with no additional fields.
         "openlayer" => Event::OpenLayer {
             namespace: data.to_string(),
         },
@@ -231,7 +237,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             namespace: data.to_string(),
         },
 
-        // Input
+        // Input events: activelayout includes keyboard device name so multi-keyboard setups
+        // can track which physical keyboard changed layout.
         "activelayout" => {
             let (keyboard, layout) = split2(data);
             Event::ActiveLayout {
@@ -243,7 +250,8 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             name: data.to_string(),
         },
 
-        // Misc
+        // Misc events: catch-all for events that don't belong to a specific subsystem.
+        // Unknown events are preserved as-is for forward compatibility with newer Hyprland versions.
         "bell" => Event::Bell {
             address: data.to_string(),
         },

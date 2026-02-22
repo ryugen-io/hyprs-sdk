@@ -28,7 +28,7 @@ fn window_rule_dynamic_effects() {
         WindowRuleEffect::NoShadow,
         WindowRuleEffect::Xray,
     ];
-    // All variants should be distinct
+    // WHY: Needed for correctness and maintainability: All variants should be distinct
     for (i, a) in effects.iter().enumerate() {
         for (j, b) in effects.iter().enumerate() {
             if i != j {

@@ -175,13 +175,15 @@ impl GammaControlClient {
 
         let mut state = GammaControlState::new();
 
-        // Registry roundtrip: bind outputs + manager.
+        // Wayland events arrive asynchronously; roundtrip ensures outputs and the
+        // manager global are bound before we use them.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Second roundtrip: receive output name events.
+        // Output name events arrive on the wl_output objects bound in the previous
+        // roundtrip; a second roundtrip collects them so we can identify outputs by name.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -190,7 +192,8 @@ impl GammaControlClient {
             HyprError::ProtocolNotSupported("zwlr_gamma_control_manager_v1".into())
         })?;
 
-        // Create gamma control per output.
+        // Each output needs its own gamma control handle because each has an
+        // independent gamma table size and state.
         for output_entry in &state.outputs {
             let control = manager.get_gamma_control(&output_entry.output, &qh, output_entry.name);
             state.gammas.push(GammaEntry {
@@ -201,7 +204,8 @@ impl GammaControlClient {
             });
         }
 
-        // Roundtrip to receive gamma_size events.
+        // The compositor sends gamma_size asynchronously after the control object is
+        // created; roundtrip ensures we have it before returning.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -264,17 +268,19 @@ impl GammaControlClient {
             )));
         }
 
-        // Write gamma table to a temporary file.
+        // The protocol requires passing gamma data via a file descriptor; write the
+        // table to a temp file that will be sent to the compositor.
         let bytes = table.to_bytes();
         let mut tmpfile = tempfile().map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
         tmpfile
             .write_all(&bytes)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Send the fd to the compositor.
+        // The protocol reads gamma data from the fd rather than inline bytes.
         gamma.control.set_gamma(tmpfile.as_fd());
 
-        // Roundtrip to process.
+        // Roundtrip so the compositor processes the gamma update and any resulting
+        // failed events are delivered before we return.
         let Self { state, event_queue } = self;
         event_queue
             .roundtrip(state)
@@ -301,11 +307,13 @@ impl fmt::Debug for GammaControlClient {
     }
 }
 
-// ── Temporary file helper ────────────────────────────────────────────
+// ── Temporary file helper ───────────────────────────────────────────────────
+// The Wayland gamma protocol requires passing data via an fd. We create a temp
+// file and immediately unlink it so the fd outlives the filesystem path.
 
 /// Create a temporary file using memfd_create or a temp directory.
 fn tempfile() -> std::io::Result<std::fs::File> {
-    // Try to use a temp file in $XDG_RUNTIME_DIR or /tmp.
+    // Prefer $XDG_RUNTIME_DIR (tmpfs on most systems) for speed; fall back to /tmp.
     let path = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let path =
         std::path::PathBuf::from(path).join(format!("hypr-sdk-gamma-{}", std::process::id()));
@@ -315,12 +323,13 @@ fn tempfile() -> std::io::Result<std::fs::File> {
         .create(true)
         .truncate(true)
         .open(&path)?;
-    // Delete file immediately — fd stays valid.
+    // Unlink immediately so no stale file remains; the open fd stays valid.
     let _ = std::fs::remove_file(&path);
     Ok(file)
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Tracks outputs, their names, and per-output gamma control handles.
 
 struct GammaControlState {
     manager: Option<zwlr_gamma_control_manager_v1::ZwlrGammaControlManagerV1>,
@@ -351,7 +360,9 @@ impl GammaControlState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for GammaControlState {
     fn event(
@@ -425,7 +436,7 @@ impl Dispatch<zwlr_gamma_control_manager_v1::ZwlrGammaControlManagerV1, ()> for 
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

@@ -102,7 +102,7 @@ fn layers_response_ignores_unknown_fields() {
     assert!(resp.0.contains_key("DP-1"));
 }
 
-// -- Plugin-only fields default --
+// WHY: Needed for correctness and maintainability: -- Plugin-only fields default --
 
 #[test]
 fn ipc_json_defaults_plugin_fields() {

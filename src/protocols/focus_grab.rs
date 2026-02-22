@@ -213,7 +213,9 @@ impl fmt::Debug for FocusGrabClient {
     }
 }
 
-// ── Internal state ───────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
+// Holds the bound manager, active grab, and last-known grab state so that
+// the client can expose a synchronous API over the async Wayland protocol.
 
 struct FocusGrabInternalState {
     manager: Option<hyprland_focus_grab_manager_v1::HyprlandFocusGrabManagerV1>,
@@ -231,7 +233,9 @@ impl FocusGrabInternalState {
     }
 }
 
-// ── Dispatch implementations ─────────────────────────────────────────
+// ── Dispatch implementations ────────────────────────────────────────────────
+// wayland-client requires a Dispatch impl for every object type on the
+// event queue, even for objects that emit no events we care about.
 
 impl Dispatch<wl_registry::WlRegistry, ()> for FocusGrabInternalState {
     fn event(
@@ -273,7 +277,7 @@ impl Dispatch<hyprland_focus_grab_manager_v1::HyprlandFocusGrabManagerV1, ()>
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Manager has no events.
+        // Dispatch impl required by wayland-client; this interface is request-only.
     }
 }
 

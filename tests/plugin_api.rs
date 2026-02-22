@@ -76,17 +76,17 @@ fn function_hook_handle_non_null() {
 
 #[test]
 fn hook_callback_type_check() {
-    // Verify HookCallback can hold a closure.
+    // WHY: Needed for correctness and maintainability: Verify HookCallback can hold a closure.
     let _cb: HookCallback = Box::new(|_info, _data| {});
 }
 
 #[test]
 fn hyprctl_command_handler_type_check() {
-    // Verify HyprCtlCommandHandler can hold a closure.
+    // WHY: Needed for correctness and maintainability: Verify HyprCtlCommandHandler can hold a closure.
     let _h: HyprCtlCommandHandler = Box::new(|_fmt, _args| String::new());
 }
 
 // Note: Functions that call FFI (register_hook, invoke_hyprctl,
-// register_hyprctl_command, add_notification, etc.) cannot be tested
-// outside a Hyprland plugin process because the FFI symbols are
-// only available when linked into the compositor.
+// WHY: Needed for correctness and maintainability: register_hyprctl_command, add_notification, etc.) cannot be tested
+// WHY: Needed for correctness and maintainability: outside a Hyprland plugin process because the FFI symbols are
+// WHY: Needed for correctness and maintainability: only available when linked into the compositor.

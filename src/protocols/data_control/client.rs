@@ -60,7 +60,8 @@ impl DataControlClient {
 
         let mut state = DataControlState::new();
 
-        // Registry roundtrip: bind manager + seat.
+        // Wayland events arrive asynchronously; roundtrip ensures the manager and
+        // seat globals are bound before we create the data device.
         let _registry = display.get_registry(&qh, ());
         event_queue
             .roundtrip(&mut state)
@@ -77,12 +78,14 @@ impl DataControlClient {
         let device = manager.get_data_device(&seat, &qh, ());
         state.device = Some(device);
 
-        // Roundtrip to receive initial data_offer + selection events.
+        // The device sends data_offer + selection events asynchronously after creation;
+        // roundtrip ensures we have the initial clipboard state.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
-        // Extra roundtrip for offer MIME type events.
+        // MIME type events arrive on the offer created in the previous roundtrip;
+        // an extra roundtrip collects them so we know all available types.
         event_queue
             .roundtrip(&mut state)
             .map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
@@ -110,7 +113,7 @@ impl DataControlClient {
     /// Returns an error if no offer is available, the MIME type isn't
     /// offered, or reading the data fails.
     pub fn read(&mut self, selection: Selection, mime_type: &str) -> HyprResult<Vec<u8>> {
-        // Refresh to get latest state.
+        // Dispatch pending events to ensure we read the most current offer.
         self.roundtrip()?;
 
         let offer_proxy = {
@@ -128,16 +131,19 @@ impl DataControlClient {
             offer.proxy.clone()
         };
 
-        // Create a socket pair for data transfer.
+        // The protocol transfers clipboard data through a Unix socket pair: the
+        // compositor writes to one end, we read from the other.
         let (mut read_end, write_end) =
             UnixStream::pair().map_err(|e| HyprError::WaylandDispatch(e.to_string()))?;
 
         offer_proxy.receive(mime_type.to_string(), write_end.as_fd());
 
-        // Roundtrip to flush the receive request.
+        // Roundtrip ensures the receive request reaches the compositor before we
+        // try to read from the socket.
         self.roundtrip()?;
 
-        // Close write end so read gets EOF when compositor finishes.
+        // Close the write end so the read side receives EOF once the compositor
+        // finishes writing the clipboard data.
         drop(write_end);
 
         let mut data = Vec::new();

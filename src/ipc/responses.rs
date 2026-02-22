@@ -5,7 +5,8 @@
 
 use serde::Deserialize;
 
-// ── version ─────────────────────────────────────────────────────────
+// Version includes both build-time and runtime library versions so callers can detect ABI mismatches
+// between Hyprland and its dependencies (Aquamarine, Hyprlang, etc.).
 
 /// Response from the `version` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -64,7 +65,8 @@ pub struct VersionInfo {
     pub flags: Vec<String>,
 }
 
-// ── devices ─────────────────────────────────────────────────────────
+// Devices are split by input type because Hyprland's JSON nests them under separate keys
+// ("mice", "keyboards", "tablets", "touch", "switches") rather than a flat list.
 
 /// Response from the `devices` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -175,7 +177,8 @@ pub struct SwitchDevice {
     pub name: String,
 }
 
-// ── binds ───────────────────────────────────────────────────────────
+// Bind entries carry the full modifier bitmask and dispatcher+arg rather than a key combo string,
+// matching Hyprland's internal representation so callers can reconstruct or filter binds precisely.
 
 /// A keybinding entry from the `binds` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -216,7 +219,8 @@ pub struct Bind {
     pub arg: String,
 }
 
-// ── cursorpos ───────────────────────────────────────────────────────
+// Cursor position is a simple x/y pair. It uses Copy because callers frequently snapshot
+// and compare positions without needing ownership semantics.
 
 /// Response from the `cursorpos` command.
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -227,7 +231,8 @@ pub struct CursorPosition {
     pub y: i32,
 }
 
-// ── animations ──────────────────────────────────────────────────────
+// Hyprland returns animations as a two-element JSON array `[[animations], [beziers]]` rather than
+// an object, so we need a custom `from_json` instead of plain `serde_json::from_str`.
 
 /// Response from the `animations` command.
 ///
@@ -294,7 +299,8 @@ pub struct BezierCurve {
     pub y1: f64,
 }
 
-// ── globalshortcuts ─────────────────────────────────────────────────
+// Global shortcuts are registered via the Wayland global-shortcuts protocol and identified
+// by "appid:id" pairs; this struct exposes that naming for shortcut management tools.
 
 /// A global shortcut entry from the `globalshortcuts` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -306,7 +312,8 @@ pub struct GlobalShortcutInfo {
     pub description: String,
 }
 
-// ── workspacerules ──────────────────────────────────────────────────
+// Workspace rules carry optional overrides (gaps, border, shadow, etc.) that are None when
+// unset. This mirrors Hyprland's internal nullable fields and avoids losing the set/unset distinction.
 
 /// A workspace rule entry from the `workspacerules` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -343,7 +350,8 @@ pub struct WorkspaceRuleInfo {
     pub default_name: String,
 }
 
-// ── locked ──────────────────────────────────────────────────────────
+// Lock state is a single boolean but wrapped in a struct to match Hyprland's JSON envelope
+// and stay forward-compatible if additional lock metadata is added.
 
 /// Response from the `locked` command.
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -352,7 +360,8 @@ pub struct LockState {
     pub locked: bool,
 }
 
-// ── getoption ───────────────────────────────────────────────────────
+// Config options are polymorphic (int/float/string/vec2/custom). Only one value field is populated
+// per response, matching Hyprland's tagged-union JSON where the type determines which key appears.
 
 /// Response from the `getoption` command.
 ///
@@ -377,7 +386,8 @@ pub struct OptionValue {
     pub set: bool,
 }
 
-// ── decorations ─────────────────────────────────────────────────────
+// Decoration info is per-window; callers need the rendering priority to understand
+// which decoration draws on top (lower priority = drawn first).
 
 /// A window decoration entry from the `decorations` command.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -390,7 +400,9 @@ pub struct DecorationInfo {
     pub priority: i32,
 }
 
-// ── descriptions ────────────────────────────────────────────────────
+// Description entries use `serde_json::Value` for the `data` field because its shape changes
+// per option_type (e.g. int has min/max, choice has a list of values). Deserializing to a concrete
+// type would require an enum with 9+ variants that tracks unstable Hyprland internals.
 
 /// A config option description from the `descriptions` command.
 ///
@@ -414,7 +426,8 @@ pub struct ConfigDescription {
     pub data: serde_json::Value,
 }
 
-// ── plugin list ─────────────────────────────────────────────────────
+// Plugin info includes the handle (hex address) so callers can correlate with log output
+// and the version string for compatibility checks against the running Hyprland version.
 
 /// A loaded plugin from the `plugin list` command.
 #[derive(Debug, Clone, Default, Deserialize)]

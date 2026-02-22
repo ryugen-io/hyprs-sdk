@@ -61,7 +61,8 @@ unsafe extern "C" fn dispatcher_trampoline(
         *out_pass = result.pass_event;
         *out_success = result.success;
 
-        // If there's an error message, allocate it for the C++ side.
+        // Error strings must be malloc'd because ownership crosses the FFI boundary --
+        // the C++ bridge constructs a std::string from this buffer and frees it.
         if !result.error.is_empty() {
             let buf = malloc_copy(result.error.as_bytes());
             *out_error_ptr = buf;
@@ -178,7 +179,8 @@ pub fn register_dispatcher(
             _callback_data: data_ptr,
         })
     } else {
-        // Reclaim the leaked callback data on failure.
+        // The FFI call failed, so the C++ side never took ownership of data_ptr.
+        // We must reclaim it here to avoid leaking the Box we created above.
         // SAFETY: We just created this pointer and nobody else holds it.
         unsafe {
             drop(Box::from_raw(data_ptr));
