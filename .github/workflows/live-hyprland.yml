@@ -1,0 +1,40 @@
+name: live-hyprland
+
+on:
+  workflow_dispatch:
+    inputs:
+      hyprland_instance_signature:
+        description: "HYPRLAND_INSTANCE_SIGNATURE of the runner session"
+        required: true
+        type: string
+      xdg_runtime_dir:
+        description: "Optional XDG_RUNTIME_DIR override"
+        required: false
+        type: string
+
+jobs:
+  live-integration:
+    runs-on: [self-hosted, linux, hyprland]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Hyprland environment
+        run: |
+          echo "HYPRLAND_INSTANCE_SIGNATURE=${{ inputs.hyprland_instance_signature }}" >> "$GITHUB_ENV"
+          if [ -n "${{ inputs.xdg_runtime_dir }}" ]; then
+            echo "XDG_RUNTIME_DIR=${{ inputs.xdg_runtime_dir }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Live IPC smoke
+        run: scripts/live-ipc-smoke.sh
+
+      - name: Live plugin E2E
+        run: scripts/live-plugin-e2e.sh
