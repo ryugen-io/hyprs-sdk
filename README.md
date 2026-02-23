@@ -2,40 +2,53 @@
 
 Comprehensive Rust SDK for the [Hyprland](https://hyprland.org/) compositor.
 
-Covers IPC (Socket1 + Socket2), typed dispatchers, desktop object types, and more.
+`hypr-sdk` combines IPC, typed dispatchers, event parsing, desktop data models, Wayland protocol clients, and plugin FFI bindings in one crate.
+
 Verified against Hyprland **v0.53.0**.
 
-## Quick Start
+## Installation
 
 ```toml
 [dependencies]
 hypr-sdk = "0.1.0"
 ```
 
+Optional features:
+
+```toml
+[dependencies]
+hypr-sdk = { version = "0.1.0", features = ["blocking", "wayland", "plugin-ffi"] }
+```
+
+## Quick Start (Async IPC)
+
 ```rust,no_run
-use hypr_sdk::ipc::{HyprlandClient, Flags, Event, EventStream};
 use hypr_sdk::dispatch::{self, Direction};
+use hypr_sdk::ipc::{Event, EventStream, Flags, HyprlandClient};
 
 #[tokio::main]
 async fn main() -> hypr_sdk::HyprResult<()> {
     let client = HyprlandClient::current()?;
 
-    // Query monitors (plain text)
-    let text = client.monitors(Flags::default()).await?;
+    // Raw query
+    let _monitors_text = client.monitors(Flags::default()).await?;
 
-    // Query monitors (JSON, deserialized into typed structs)
+    // Typed query
     let monitors = client.monitors_typed().await?;
     for m in &monitors {
         println!("{}: {}x{}", m.name, m.width, m.height);
     }
 
-    // Dispatch a command
+    // Typed dispatchers
     client.dispatch_cmd(dispatch::workspace::switch("3")).await?;
-    client.dispatch_cmd(dispatch::focus::move_focus(Direction::Left)).await?;
+    client
+        .dispatch_cmd(dispatch::focus::move_focus(Direction::Left))
+        .await?;
 
-    // Listen to events
-    let stream = client.event_stream().await?;
-    let mut events = EventStream::new(stream);
+    // Event stream
+    let socket2 = client.event_stream().await?;
+    let mut events = EventStream::new(socket2);
+
     while let Some(event) = events.next_event().await? {
         match event {
             Event::Workspace { name } => println!("workspace: {name}"),
@@ -48,85 +61,121 @@ async fn main() -> hypr_sdk::HyprResult<()> {
 }
 ```
 
-## Features
+## Feature Overview
 
-### IPC Client
+- **IPC (`hyprctl` over Socket1 + Socket2)**
+  - All IPC command builders
+  - Async `HyprlandClient`
+  - Typed JSON helpers (`*_typed` methods)
+  - Blocking client via `blocking` feature
+- **Typed dispatchers**
+  - 72 dispatcher builders under `hypr_sdk::dispatch::*`
+- **Typed events**
+  - Parsed Socket2 events via `Event` + `EventStream`
+  - Unknown events preserved as `Event::Unknown`
+- **Desktop types**
+  - `Window`, `Workspace`, `Monitor`, `LayerSurface`
+  - Shared newtypes/enums: `WindowAddress`, `WorkspaceId`, `MonitorId`, etc.
+- **Config model types**
+  - Config option descriptors and monitor/workspace/window/layer rule types
+- **Wayland protocol clients** (`wayland` feature)
+  - Connection/discovery + Hyprland/wlr protocol wrappers
+  - Includes protocols like layer-shell, screencopy, session-lock, virtual keyboard/pointer, output management, and more
+- **Plugin API bindings** (`plugin-ffi` feature)
+  - Lifecycle macro (`hyprland_plugin!`)
+  - Hooks, custom dispatchers, hyprctl commands, notifications
+  - Layout and decoration registration APIs
 
-Full Socket1 (request/response) and Socket2 (event stream) support.
+## Feature Flags
 
-- **All 37 IPC commands** with configurable output flags (JSON, plain text, reload, all, config)
-- **Raw and typed APIs** — use `client.monitors(Flags::default())` for text or `client.monitors_typed()` for deserialized structs
-- **Action commands** — `dispatch`, `keyword`, `reload`, `kill`, `notify`, `set_cursor`, etc.
-- **Batch** — send multiple commands in one request
-- **Async by default** (tokio), blocking variant behind `blocking` feature flag
+- `blocking`: enables synchronous IPC client (`ipc::BlockingClient`)
+- `wayland`: enables Wayland protocol modules under `hypr_sdk::protocols`
+- `plugin-ffi`: enables C++ bridge-backed plugin API integration
 
-### Typed Dispatchers
+Default features are empty.
 
-All 72 Hyprland dispatchers with strongly-typed arguments, split by domain:
+## Additional Usage
 
-| Module | Dispatchers |
-|---|---|
-| `dispatch::exec` | `exec`, `execr`, `exit` |
-| `dispatch::window` | `kill_active`, `close_window`, `toggle_floating`, `pin`, `fullscreen`, `set_prop`, ... |
-| `dispatch::focus` | `move_focus`, `focus_window`, `focus_monitor`, `cycle_next`, ... |
-| `dispatch::movement` | `move_window`, `resize_active`, `move_to_workspace`, `move_cursor`, ... |
-| `dispatch::workspace` | `switch`, `rename`, `toggle_special`, `move_to_monitor`, `swap_active_workspaces`, ... |
-| `dispatch::group` | `toggle_group`, `lock_groups`, `move_into_group`, `move_window_or_group`, ... |
-| `dispatch::layout` | `pseudo`, `toggle_split`, `split_ratio`, `layout_msg` |
-| `dispatch::input` | `submap`, `dpms`, `send_shortcut`, `pass`, `global`, `mouse` |
-| `dispatch::misc` | `force_renderer_reload`, `event`, `force_idle` |
+Blocking IPC client:
 
-### Event Stream
+```rust,ignore
+use hypr_sdk::ipc::BlockingClient;
 
-All 43 Socket2 events parsed into a strongly-typed `Event` enum, including v2 variants. Unknown events are captured in `Event::Unknown` for forward compatibility.
+fn main() -> hypr_sdk::HyprResult<()> {
+    let client = BlockingClient::current()?;
+    let version = client.version_typed()?;
+    println!("{} ({})", version.tag, version.hash);
+    Ok(())
+}
+```
 
-### Desktop Types
+Wayland protocol client (`wayland` feature):
 
-Full desktop object types derived from the Hyprland C++ source, not just IPC JSON:
+```rust,ignore
+use hypr_sdk::protocols::connection::WaylandConnection;
 
-- **Window** — 33 fields (identity, geometry, state, fullscreen, groups, tags, XDG metadata, plugin-only)
-- **Workspace** — 15 fields (IPC + plugin)
-- **Monitor** — 30 fields (resolution, position, workspaces, display settings, color management, plugin-only)
-- **LayerSurface** — 9 fields (position, size, namespace, plugin-only)
-- Newtypes: `WindowAddress`, `WorkspaceId`, `MonitorId`
-- Enums: `FullscreenMode`, `OutputTransform`, `Layer`, `ContentType`
+fn main() -> hypr_sdk::HyprResult<()> {
+    let wl = WaylandConnection::connect()?;
+    for g in wl.globals() {
+        println!("{} v{}", g.interface, g.version);
+    }
+    Ok(())
+}
+```
 
-### Instance Discovery
+Plugin lifecycle macro (`plugin-ffi` feature):
 
-Scan `$XDG_RUNTIME_DIR/hypr/` for running Hyprland instances, validate PIDs, resolve socket paths.
+```rust,ignore
+use hypr_sdk::plugin::*;
 
-## Planned
+fn init(_handle: PluginHandle) -> Result<PluginDescription, String> {
+    Ok(PluginDescription {
+        name: "example-plugin".into(),
+        description: "example".into(),
+        author: "you".into(),
+        version: "0.1.0".into(),
+    })
+}
 
-- **Config types** — config option types, monitor/workspace/window rules
-- **Plugin FFI** — safe Rust bindings for writing Hyprland plugins
-- **Wayland protocol bindings** — client-side bindings for Hyprland-specific and wlr protocols
+fn exit() {}
+
+hyprland_plugin! {
+    init: init,
+    exit: exit,
+}
+```
 
 ## Requirements
 
-- Rust nightly (edition 2024)
-- A running Hyprland instance (for IPC)
+- Rust **nightly** (`edition = 2024`)
+- Hyprland runtime for IPC/Wayland operations
+- For `plugin-ffi`:
+  - Hyprland development headers available via `pkg-config`
+  - C++ toolchain with C++2b support
 
-## Quality Gates
-
-Comprehensive local quality run:
+## Quality Commands
 
 ```bash
-cargo test --all-targets
-cargo test --features wayland,blocking
-cargo test --features plugin-ffi
+cargo test --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
 cargo bench --no-run
 ```
 
-Run benchmarks:
+Live integration checks (requires a running Hyprland session):
 
 ```bash
-cargo bench --bench event_parsing
-cargo bench --bench json_deser
-cargo bench --bench command_building
-cargo bench --bench dispatch_building
+export HYPRLAND_INSTANCE_SIGNATURE="<your-signature>"
+scripts/live-ipc-smoke.sh
+scripts/live-plugin-e2e.sh
 ```
 
-Run fuzz targets (requires `cargo-fuzz`):
+`scripts/live-plugin-e2e.sh` builds a minimal C++ plugin fixture and requires
+Hyprland headers (via `pkg-config hyprland`) plus a C++ toolchain.
+
+Dedicated CI workflow for this exists at `.github/workflows/live-hyprland.yml`
+and targets a self-hosted runner labeled `linux` + `hyprland`.
+
+Fuzzing (optional):
 
 ```bash
 cargo install cargo-fuzz
