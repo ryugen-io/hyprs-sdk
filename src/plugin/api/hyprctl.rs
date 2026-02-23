@@ -141,11 +141,23 @@ unsafe extern "C" fn hyprctl_trampoline(
         return;
     }
 
+    if args_len > 0 && args_ptr.is_null() {
+        unsafe {
+            *out_ptr = std::ptr::null_mut();
+            *out_len = 0;
+        }
+        return;
+    }
+
     // SAFETY: user_data was created by Box::into_raw in register_hyprctl_command.
     let data = unsafe { &*(user_data as *const HyprCtlCommandCallbackData) };
-    let args = unsafe {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(args_ptr.cast(), args_len))
+    let args_bytes = if args_len == 0 {
+        &[][..]
+    } else {
+        // SAFETY: args_ptr is non-null and args_len > 0.
+        unsafe { std::slice::from_raw_parts(args_ptr.cast::<u8>(), args_len) }
     };
+    let args = String::from_utf8_lossy(args_bytes);
 
     let fmt = if format == 1 {
         HyprCtlOutputFormat::Json
@@ -153,7 +165,7 @@ unsafe extern "C" fn hyprctl_trampoline(
         HyprCtlOutputFormat::Normal
     };
 
-    let result = (data.handler)(fmt, args);
+    let result = (data.handler)(fmt, args.as_ref());
 
     // SAFETY: out_ptr and out_len are owned by the C++ caller and valid.
     unsafe {

@@ -269,11 +269,24 @@ unsafe extern "C" fn trampoline_layout_message(
     out_ptr: *mut *mut c_char,
     out_len: *mut usize,
 ) -> bool {
+    if msg_len > 0 && msg_ptr.is_null() {
+        unsafe {
+            *out_ptr = std::ptr::null_mut();
+            *out_len = 0;
+        }
+        return false;
+    }
+
     let data = unsafe { &mut *(rust_layout as *mut LayoutData) };
-    let msg = unsafe {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(msg_ptr.cast(), msg_len))
+    let msg_bytes = if msg_len == 0 {
+        &[][..]
+    } else {
+        // SAFETY: msg_ptr is non-null and msg_len > 0.
+        unsafe { std::slice::from_raw_parts(msg_ptr.cast::<u8>(), msg_len) }
     };
-    match data.inner.layout_message(window, msg) {
+    let msg = String::from_utf8_lossy(msg_bytes);
+
+    match data.inner.layout_message(window, msg.as_ref()) {
         Some(response) if !response.is_empty() => {
             let buf = malloc_copy(response.as_bytes());
             unsafe {
@@ -308,11 +321,20 @@ unsafe extern "C" fn trampoline_move_window_to(
     dir_len: usize,
     silent: bool,
 ) {
+    if dir_len > 0 && dir_ptr.is_null() {
+        return;
+    }
+
     let data = unsafe { &mut *(rust_layout as *mut LayoutData) };
-    let dir = unsafe {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(dir_ptr.cast(), dir_len))
+    let dir_bytes = if dir_len == 0 {
+        &[][..]
+    } else {
+        // SAFETY: dir_ptr is non-null and dir_len > 0.
+        unsafe { std::slice::from_raw_parts(dir_ptr.cast::<u8>(), dir_len) }
     };
-    data.inner.move_window_to(window, dir, silent);
+    let dir = String::from_utf8_lossy(dir_bytes);
+
+    data.inner.move_window_to(window, dir.as_ref(), silent);
 }
 
 unsafe extern "C" fn trampoline_alter_split_ratio(

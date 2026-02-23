@@ -173,11 +173,17 @@ unsafe extern "C" fn keyword_trampoline(
     }
     // SAFETY: user_data was created by Box::into_raw in register_config_keyword.
     let data = unsafe { &*(user_data as *const KeywordCallbackData) };
-    let value = unsafe {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(value_ptr.cast(), value_len))
+    let value_bytes = if value_len == 0 {
+        &[][..]
+    } else if value_ptr.is_null() {
+        return false;
+    } else {
+        // SAFETY: value_ptr is non-null and value_len > 0.
+        unsafe { std::slice::from_raw_parts(value_ptr.cast::<u8>(), value_len) }
     };
 
-    (data.handler)(value).is_ok()
+    let value = String::from_utf8_lossy(value_bytes);
+    (data.handler)(value.as_ref()).is_ok()
 }
 
 /// Register a custom config keyword handler.

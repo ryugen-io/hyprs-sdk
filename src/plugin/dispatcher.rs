@@ -44,17 +44,33 @@ unsafe extern "C" fn dispatcher_trampoline(
         unsafe {
             *out_pass = false;
             *out_success = false;
+            *out_error_ptr = std::ptr::null_mut();
+            *out_error_len = 0;
+        }
+        return;
+    }
+
+    if args_len > 0 && args_ptr.is_null() {
+        unsafe {
+            *out_pass = false;
+            *out_success = false;
+            *out_error_ptr = std::ptr::null_mut();
+            *out_error_len = 0;
         }
         return;
     }
 
     // SAFETY: user_data was created by Box::into_raw in register_dispatcher.
     let data = unsafe { &*(user_data as *const DispatcherCallbackData) };
-    let args = unsafe {
-        std::str::from_utf8_unchecked(std::slice::from_raw_parts(args_ptr.cast(), args_len))
+    let args_bytes = if args_len == 0 {
+        &[][..]
+    } else {
+        // SAFETY: args_ptr is non-null and args_len > 0.
+        unsafe { std::slice::from_raw_parts(args_ptr.cast::<u8>(), args_len) }
     };
+    let args = String::from_utf8_lossy(args_bytes);
 
-    let result = (data.callback)(args);
+    let result = (data.callback)(args.as_ref());
 
     // SAFETY: out pointers are valid and provided by the C++ bridge.
     unsafe {
@@ -117,21 +133,25 @@ unsafe impl Send for DispatcherGuard {}
 
 impl Drop for DispatcherGuard {
     fn drop(&mut self) {
-        if !self.handle.is_null() {
+        let unregistered = if self.handle.is_null() {
+            false
+        } else {
             // SAFETY: We're in drop, unregistering the dispatcher we registered.
             unsafe {
                 ffi::remove_dispatcher(
                     self.handle.0,
                     self.name.as_ptr().cast::<c_char>(),
                     self.name.len(),
-                );
+                )
             }
+        };
 
+        // Only reclaim callback data when we're sure the compositor no longer holds it.
+        // If unregistering fails we intentionally leak to avoid potential use-after-free.
+        if !self._callback_data.is_null() && (unregistered || self.handle.is_null()) {
             // SAFETY: We created this pointer via Box::into_raw in register_dispatcher.
-            if !self._callback_data.is_null() {
-                unsafe {
-                    drop(Box::from_raw(self._callback_data));
-                }
+            unsafe {
+                drop(Box::from_raw(self._callback_data));
             }
         }
     }

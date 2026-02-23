@@ -56,13 +56,18 @@ unsafe impl Send for HookCallbackGuard {}
 
 impl Drop for HookCallbackGuard {
     fn drop(&mut self) {
-        if !self.handle.is_null() && !self.callback_ptr.is_null() {
+        let unregistered = if self.handle.is_null() || self.callback_ptr.is_null() {
+            false
+        } else {
             // SAFETY: Unregistering our own callback.
-            unsafe {
-                ffi::unregister_callback(self.handle.0, self.callback_ptr);
-            }
-        }
-        if !self.callback_data.is_null() {
+            unsafe { ffi::unregister_callback(self.handle.0, self.callback_ptr) }
+        };
+
+        // Only reclaim callback data when we're sure the callback is no longer registered.
+        // If unregistering fails we intentionally leak to avoid potential use-after-free.
+        if !self.callback_data.is_null()
+            && (unregistered || self.callback_ptr.is_null() || self.handle.is_null())
+        {
             // SAFETY: We created this via Box::into_raw.
             unsafe {
                 drop(Box::from_raw(self.callback_data));
