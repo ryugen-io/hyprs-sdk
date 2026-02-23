@@ -362,7 +362,7 @@ impl HyprlandClient {
 
     /// Query loaded plugins (JSON-deserialized).
     pub async fn plugin_list_typed(&self) -> HyprResult<Vec<responses::PluginInfo>> {
-        let raw = self.request(&commands::plugin("list")).await?;
+        let raw = self.request_flagged(Flags::json(), "plugin list").await?;
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 

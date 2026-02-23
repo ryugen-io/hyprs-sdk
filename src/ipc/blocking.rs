@@ -311,7 +311,7 @@ impl BlockingClient {
 
     /// Query loaded plugins (JSON-deserialized).
     pub fn plugin_list_typed(&self) -> HyprResult<Vec<responses::PluginInfo>> {
-        let raw = self.request(&commands::plugin("list"))?;
+        let raw = self.request_flagged(Flags::json(), "plugin list")?;
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 

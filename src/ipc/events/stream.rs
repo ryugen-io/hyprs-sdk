@@ -27,16 +27,20 @@ impl EventStream {
     ///
     /// Returns `None` on stream close.
     pub async fn next_event(&mut self) -> HyprResult<Option<Event>> {
-        self.buf.clear();
-        let n = self
-            .reader
-            .read_line(&mut self.buf)
-            .await
-            .map_err(HyprError::Io)?;
-        if n == 0 {
-            return Ok(None);
+        loop {
+            self.buf.clear();
+            let n = self
+                .reader
+                .read_line(&mut self.buf)
+                .await
+                .map_err(HyprError::Io)?;
+            if n == 0 {
+                return Ok(None);
+            }
+            let line = self.buf.trim_end_matches(&['\n', '\r'][..]);
+            if let Some(event) = parse_event(line) {
+                return Ok(Some(event));
+            }
         }
-        let line = self.buf.trim_end_matches('\n');
-        Ok(parse_event(line))
     }
 }

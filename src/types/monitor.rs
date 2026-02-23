@@ -4,6 +4,7 @@
 //! Deserialization target for the `monitors` IPC query.
 
 use serde::Deserialize;
+use serde::de::Deserializer;
 
 use super::common::{MonitorId, WindowAddress, WorkspaceRef};
 
@@ -106,7 +107,10 @@ pub struct Monitor {
     pub solitary: WindowAddress,
 
     /// Bitmask of reasons solitary mode is blocked.
-    #[serde(rename = "solitaryBlockedBy")]
+    #[serde(
+        rename = "solitaryBlockedBy",
+        deserialize_with = "deserialize_blocked_by_u32"
+    )]
     pub solitary_blocked_by: u32,
 
     // Tearing (immediate presentation without vsync) is used for latency-sensitive apps
@@ -116,7 +120,10 @@ pub struct Monitor {
     pub actively_tearing: bool,
 
     /// Bitmask of reasons tearing is blocked.
-    #[serde(rename = "tearingBlockedBy")]
+    #[serde(
+        rename = "tearingBlockedBy",
+        deserialize_with = "deserialize_blocked_by_u8"
+    )]
     pub tearing_blocked_by: u8,
 
     // Direct scanout bypasses composition by presenting the client buffer directly on
@@ -126,7 +133,10 @@ pub struct Monitor {
     pub direct_scanout_to: WindowAddress,
 
     /// Bitmask of reasons direct scanout is blocked.
-    #[serde(rename = "directScanoutBlockedBy")]
+    #[serde(
+        rename = "directScanoutBlockedBy",
+        deserialize_with = "deserialize_blocked_by_u16"
+    )]
     pub direct_scanout_blocked_by: u16,
 
     // Pixel format and mirroring are DRM/KMS-level settings. The format determines
@@ -175,4 +185,50 @@ pub struct Monitor {
     /// Whether this monitor was created by user configuration.
     #[serde(default)]
     pub created_by_user: bool,
+}
+
+fn parse_mask_from_text(text: &str) -> Option<u64> {
+    text.parse::<u64>().ok()
+}
+
+fn deserialize_blocked_by_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let out = match value {
+        serde_json::Value::Number(n) => n.as_u64().unwrap_or(0),
+        serde_json::Value::String(t) => parse_mask_from_text(&t).unwrap_or(0),
+        serde_json::Value::Null | serde_json::Value::Array(_) => 0,
+        _ => 0,
+    };
+    Ok(u32::try_from(out).unwrap_or(0))
+}
+
+fn deserialize_blocked_by_u16<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let out = match value {
+        serde_json::Value::Number(n) => n.as_u64().unwrap_or(0),
+        serde_json::Value::String(t) => parse_mask_from_text(&t).unwrap_or(0),
+        serde_json::Value::Null | serde_json::Value::Array(_) => 0,
+        _ => 0,
+    };
+    Ok(u16::try_from(out).unwrap_or(0))
+}
+
+fn deserialize_blocked_by_u8<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let out = match value {
+        serde_json::Value::Number(n) => n.as_u64().unwrap_or(0),
+        serde_json::Value::String(t) => parse_mask_from_text(&t).unwrap_or(0),
+        serde_json::Value::Null | serde_json::Value::Array(_) => 0,
+        _ => 0,
+    };
+    Ok(u8::try_from(out).unwrap_or(0))
 }

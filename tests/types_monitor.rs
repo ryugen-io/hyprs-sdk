@@ -114,6 +114,19 @@ fn monitor_array() {
     assert_eq!(monitors.len(), 1);
 }
 
+#[test]
+fn monitor_accepts_blocked_by_arrays_and_null() {
+    let mut json: serde_json::Value = serde_json::from_str(SAMPLE_JSON).unwrap();
+    json["solitaryBlockedBy"] = serde_json::Value::Null;
+    json["tearingBlockedBy"] = serde_json::json!(["NOT_TORN", "WINDOW"]);
+    json["directScanoutBlockedBy"] = serde_json::json!(["USER", "CANDIDATE"]);
+
+    let m: Monitor = serde_json::from_value(json).unwrap();
+    assert_eq!(m.solitary_blocked_by, 0);
+    assert_eq!(m.tearing_blocked_by, 0);
+    assert_eq!(m.direct_scanout_blocked_by, 0);
+}
+
 // WHY: Needed for correctness and maintainability: -- Plugin-only fields default --
 
 #[test]

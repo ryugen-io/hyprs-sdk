@@ -18,8 +18,8 @@ fn shortcut_event_construction() {
     let ev = ShortcutEvent {
         id: "toggle-mic".to_string(),
         kind: ShortcutEventKind::Pressed,
-        timestamp_ns: 12345_000_000_000,
+        timestamp_ns: 12_345_000_000_000,
     };
-    assert_eq!(ev.timestamp_ns, 12345_000_000_000);
+    assert_eq!(ev.timestamp_ns, 12_345_000_000_000);
     assert_eq!(ev.kind, ShortcutEventKind::Pressed);
 }
