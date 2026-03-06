@@ -1,7 +1,7 @@
-# Hypr Stack Feature-Gating Audit (hyprs-sdk / hyprlog / hyprs-conf)
+# Hypr Stack Feature-Gating Audit (hyprs-sdk / hyprslog / hyprs-conf)
 
 Date: 2026-02-23  
-Scope: `hyprs-sdk`, `hyprlog`, `hyprs-conf`  
+Scope: `hyprs-sdk`, `hyprslog`, `hyprs-conf`  
 Goal: maximal kontrollierbare Builds (pro User-Usecase), ohne API/CLI-Divergenz.
 
 ## 1) Ist-Zustand
@@ -18,7 +18,7 @@ Goal: maximal kontrollierbare Builds (pro User-Usecase), ohne API/CLI-Divergenz.
   - C++ Bridge korrekt hinter `plugin-ffi`.
   - Neu: `hyprpm` Wrapper (`hyprs_sdk::hyprpm`) für Plugin-Lifecycle-CLI.
 
-### hyprlog
+### hyprslog
 - Features:
   - `cli` (default)
   - `ffi`
@@ -46,10 +46,10 @@ Goal: maximal kontrollierbare Builds (pro User-Usecase), ohne API/CLI-Divergenz.
   - `tests/live_cli_parity.rs` vergleicht JSON-Shape SDK vs `hyprctl` live.
   - `tests/live_full_smoke.rs` deckt read/set/dispatch live ab.
 
-### hyprlog
+### hyprslog
 - Parität zwischen:
-  - Library API (`hyprlog::*`)
-  - `hyprlog` CLI
+  - Library API (`hyprslog::*`)
+  - `hyprslog` CLI
 - Offene Arbeit:
   - automatisierter Parity-Snapshot je Subcommand/Output-Backend.
 
@@ -70,9 +70,9 @@ Goal: maximal kontrollierbare Builds (pro User-Usecase), ohne API/CLI-Divergenz.
    - Hard-Fail Parity für: `hyprctl` commands, `setprop`, Socket2 events, Dispatchers, Hook-Events, `hyprpm` commands, Plugin-API (non-deprecated).
 
 ### Empfohlene nächste Gates (low risk)
-1. `hyprlog`: `conf-discovery` Feature (für `hyprs-conf`-Integration)  
-2. `hyprlog`: `highlight` Feature (regex/highlight optional)  
-3. `hyprlog`: `file-output` Feature (flate2/retention optional)
+1. `hyprslog`: `conf-discovery` Feature (für `hyprs-conf`-Integration)  
+2. `hyprslog`: `highlight` Feature (regex/highlight optional)  
+3. `hyprslog`: `file-output` Feature (flate2/retention optional)
 
 ### Empfohlene nächste Gates (medium risk)
 1. `hyprs-sdk`: optionales Feature `hyprpm` (derzeit always-on API)  
