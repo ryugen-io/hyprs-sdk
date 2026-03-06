@@ -4,7 +4,7 @@ Comprehensive Rust SDK for the [Hyprland](https://hyprland.org/) compositor.
 
 `hyprs-sdk` combines IPC, typed dispatchers, event parsing, desktop data models, Wayland protocol clients, and plugin FFI bindings in one crate.
 
-Verified against Hyprland **v0.53.0**.
+Version detected automatically from system via `pkg-config` at build time.
 
 ## Installation
 

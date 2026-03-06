@@ -188,18 +188,6 @@ fn parse_fullscreen() {
 }
 
 #[test]
-fn parse_change_floating_mode() {
-    let ev = parse_event("changefloatingmode>>abcdef,1").unwrap();
-    assert_eq!(
-        ev,
-        Event::ChangeFloatingMode {
-            address: WindowAddress(0xabcdef),
-            is_tiled: true
-        }
-    );
-}
-
-#[test]
 fn parse_move_window_v2() {
     let ev = parse_event("movewindowv2>>abcdef,2,work").unwrap();
     assert_eq!(
@@ -232,18 +220,6 @@ fn parse_minimized() {
         Event::Minimized {
             address: WindowAddress(0xabcdef),
             minimized: false
-        }
-    );
-}
-
-#[test]
-fn parse_toggle_group() {
-    let ev = parse_event("togglegroup>>1,abcdef").unwrap();
-    assert_eq!(
-        ev,
-        Event::ToggleGroup {
-            state: true,
-            addresses: vec![WindowAddress(0xabcdef)]
         }
     );
 }

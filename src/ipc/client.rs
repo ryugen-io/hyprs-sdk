@@ -319,12 +319,6 @@ impl HyprlandClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
-    /// Query available layout names (JSON-deserialized).
-    pub async fn layouts_typed(&self) -> HyprResult<Vec<String>> {
-        let raw = self.request(&commands::layouts(Flags::json())).await?;
-        serde_json::from_str(&raw).map_err(HyprError::Json)
-    }
-
     /// Query configuration errors (JSON-deserialized).
     pub async fn config_errors_typed(&self) -> HyprResult<Vec<String>> {
         let raw = self
@@ -458,11 +452,6 @@ impl HyprlandClient {
     /// Query animations with custom flags.
     pub async fn animations(&self, flags: Flags) -> HyprResult<String> {
         self.request(&commands::animations(flags)).await
-    }
-
-    /// Query layouts with custom flags.
-    pub async fn layouts(&self, flags: Flags) -> HyprResult<String> {
-        self.request(&commands::layouts(flags)).await
     }
 
     /// Query config errors with custom flags.

@@ -287,12 +287,6 @@ impl BlockingClient {
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
-    /// Query available layout names (JSON-deserialized).
-    pub fn layouts_typed(&self) -> HyprResult<Vec<String>> {
-        let raw = self.request(&commands::layouts(Flags::json()))?;
-        serde_json::from_str(&raw).map_err(HyprError::Json)
-    }
-
     /// Query configuration errors (JSON-deserialized).
     pub fn config_errors_typed(&self) -> HyprResult<Vec<String>> {
         let raw = self.request(&commands::config_errors(Flags::json()))?;
@@ -412,11 +406,6 @@ impl BlockingClient {
     /// Query animations with custom flags.
     pub fn animations(&self, flags: Flags) -> HyprResult<String> {
         self.request(&commands::animations(flags))
-    }
-
-    /// Query layouts with custom flags.
-    pub fn layouts(&self, flags: Flags) -> HyprResult<String> {
-        self.request(&commands::layouts(flags))
     }
 
     /// Query config errors with custom flags.

@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use hyprs_sdk::ipc::commands::{self, Flags};
+use std::hint::black_box;
 
 fn bench_flag_prefix(c: &mut Criterion) {
     let mut group = c.benchmark_group("flag_prefix");

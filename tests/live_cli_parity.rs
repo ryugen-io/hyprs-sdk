@@ -125,9 +125,9 @@ async fn live_cli_parity_for_json_queries() -> HyprResult<()> {
             hyprctl_args: vec!["-j".into(), "globalshortcuts".into()],
         },
         ParityCase {
-            name: "layouts".into(),
-            sdk_command: commands::layouts(Flags::json()),
-            hyprctl_args: vec!["-j".into(), "layouts".into()],
+            name: "layers".into(),
+            sdk_command: commands::layers(Flags::json()),
+            hyprctl_args: vec!["-j".into(), "layers".into()],
         },
         ParityCase {
             name: "configerrors".into(),

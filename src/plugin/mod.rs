@@ -53,4 +53,8 @@ pub use decoration::{
     DecorationPositioningInfo, DecorationType, WindowDecoration, WindowHandle,
 };
 pub use dispatcher::{DispatcherFn, DispatcherGuard};
-pub use layout::{Direction, Layout, LayoutHandle, RectCorner};
+pub use layout::{
+    Direction, FloatingAlgorithm, FloatingAlgorithmFactory, FocalPoint, Layout, LayoutHandle,
+    ModeAlgorithm, RectCorner, TiledAlgorithm, TiledAlgorithmFactory, register_floating_algo,
+    register_layout, register_tiled_algo, remove_algo, unregister_layout,
+};

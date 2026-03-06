@@ -1,8 +1,12 @@
 #![deny(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-/// Target Hyprland version this SDK was verified against.
-pub const HYPRLAND_TARGET_VERSION: &str = "0.53.0";
+/// Hyprland version detected from the system at build time (via pkg-config).
+/// Falls back to a manually set version if pkg-config is unavailable.
+pub const HYPRLAND_TARGET_VERSION: &str = match option_env!("HYPRLAND_SYSTEM_VERSION") {
+    Some(v) => v,
+    None => "0.54.1",
+};
 
 pub mod config;
 pub mod dispatch;

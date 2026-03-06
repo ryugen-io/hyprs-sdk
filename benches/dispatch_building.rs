@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use hyprs_sdk::dispatch::{self, Corner, Direction, DispatchCmd, ToggleState};
+use std::hint::black_box;
 
 fn build_all_dispatchers() -> Vec<DispatchCmd> {
     vec![

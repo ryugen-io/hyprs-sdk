@@ -1,15 +1,17 @@
 fn main() {
+    // Expose detected Hyprland version as compile-time env var for the SDK.
+    if let Ok(lib) = pkg_config::probe_library("hyprland") {
+        println!("cargo:rustc-env=HYPRLAND_SYSTEM_VERSION={}", lib.version);
+    }
+
     #[cfg(feature = "plugin-ffi")]
     {
         // Probe pkg-config for Hyprland development headers.
-        let hyprland = pkg_config::Config::new()
-            .atleast_version("0.53.0")
-            .probe("hyprland")
-            .expect(
-                "pkg-config could not find 'hyprland'. \
+        let hyprland = pkg_config::Config::new().probe("hyprland").expect(
+            "pkg-config could not find 'hyprland'. \
                  Install hyprland development headers (e.g. `hyprpm headers install`). \
                  The plugin-ffi feature requires Hyprland headers to compile the C++ bridge.",
-            );
+        );
 
         let bridge_dir = "src/plugin/bridge";
         let bridge_files = [
@@ -18,7 +20,9 @@ fn main() {
             "bridge_hooks.cpp",
             "bridge_hyprctl.cpp",
             "bridge_dispatch.cpp",
-            "bridge_layout.cpp",
+            "bridge_layout_legacy.cpp",
+            "bridge_layout_tiled.cpp",
+            "bridge_layout_floating.cpp",
             "bridge_decoration.cpp",
             "bridge_misc.cpp",
             "bridge_lifecycle.cpp",

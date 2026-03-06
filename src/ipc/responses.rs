@@ -16,7 +16,7 @@ pub struct VersionInfo {
     pub branch: String,
     /// Git commit hash.
     pub commit: String,
-    /// Version string (e.g., "0.53.0").
+    /// Version string (e.g., "0.54.1").
     pub version: String,
     /// Whether the build has uncommitted changes.
     pub dirty: bool,

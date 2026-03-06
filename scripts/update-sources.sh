@@ -147,10 +147,117 @@ extract_sdk_dispatchers() {
 }
 
 extract_source_hooks() {
-    find "$TARGET_DIR/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-        | xargs -0 perl -ne 'while(/EMIT_HOOK_EVENT(?:_CANCELLABLE)?\("([^"]+)"/g){print "$1\n"}' \
-        | awk '/^[A-Za-z][A-Za-z0-9]*$/' \
-        | sort -u
+    # v0.54+ uses a typed CEventBus in src/event/EventBus.hpp instead of EMIT_HOOK_EVENT macros.
+    # Parse the nested struct layout, build qualified paths, and map to legacy SDK names.
+    local bus_header="$TARGET_DIR/src/event/EventBus.hpp"
+    if [ -f "$bus_header" ]; then
+        perl -0777 -ne '
+            # Mapping from "structpath.field" to legacy SDK hook name.
+            # When Hyprland adds a new event field, add its mapping here.
+            my %MAP = (
+                "ready"                     => "ready",
+                "tick"                      => "tick",
+                "window.open"               => "openWindow",
+                "window.openEarly"          => "openWindowEarly",
+                "window.destroy"            => "destroyWindow",
+                "window.close"              => "closeWindow",
+                "window.active"             => "activeWindow",
+                "window.urgent"             => "urgent",
+                "window.title"              => "windowTitle",
+                "window.class_"             => "windowClass",
+                "window.pin"                => "pin",
+                "window.fullscreen"         => "fullscreen",
+                "window.updateRules"        => "windowUpdateRules",
+                "window.moveToWorkspace"    => "moveWindow",
+                "layer.opened"              => "openLayer",
+                "layer.closed"              => "closeLayer",
+                "input.mouse.move"          => "mouseMove",
+                "input.mouse.button"        => "mouseButton",
+                "input.mouse.axis"          => "mouseAxis",
+                "input.keyboard.key"        => "keyPress",
+                "input.keyboard.layout"     => "activeLayout",
+                "input.keyboard.focus"      => "keyboardFocus",
+                "input.tablet.axis"         => "tabletAxis",
+                "input.tablet.button"       => "tabletButton",
+                "input.tablet.proximity"    => "tabletProximity",
+                "input.tablet.tip"          => "tabletTip",
+                "input.touch.cancel"        => "touchCancel",
+                "input.touch.down"          => "touchDown",
+                "input.touch.up"            => "touchUp",
+                "input.touch.motion"        => "touchMove",
+                "render.pre"                => "preRender",
+                "render.stage"              => "render",
+                "screenshare.state"         => "screencast",
+                "gesture.swipe.begin"       => "swipeBegin",
+                "gesture.swipe.end"         => "swipeEnd",
+                "gesture.swipe.update"      => "swipeUpdate",
+                "gesture.pinch.begin"       => "pinchBegin",
+                "gesture.pinch.end"         => "pinchEnd",
+                "gesture.pinch.update"      => "pinchUpdate",
+                "monitor.newMon"            => "newMonitor",
+                "monitor.preAdded"          => "preMonitorAdded",
+                "monitor.added"             => "monitorAdded",
+                "monitor.preRemoved"        => "preMonitorRemoved",
+                "monitor.removed"           => "monitorRemoved",
+                "monitor.preCommit"         => "preMonitorCommit",
+                "monitor.focused"           => "focusedMon",
+                "monitor.layoutChanged"     => "monitorLayoutChanged",
+                "workspace.moveToMonitor"   => "moveWorkspace",
+                "workspace.active"          => "workspace",
+                "workspace.created"         => "createWorkspace",
+                "workspace.removed"         => "destroyWorkspace",
+                "config.preReload"          => "preConfigReload",
+                "config.reloaded"           => "configReloaded",
+                "keybinds.submap"           => "submap",
+            );
+
+            my @lines = split /\n/, $_;
+
+            # Pass 1: find all named struct scopes (start_line, end_line, name).
+            # C++ names anonymous structs at the closing brace: } name;
+            my @scopes;
+            for my $i (0..$#lines) {
+                next unless $lines[$i] =~ /\}\s*([a-zA-Z_]\w*)\s*;/;
+                my $name = $1;
+                next if $name eq "m_events";
+                # Walk backwards to find matching struct {
+                my $depth = 1;
+                for my $j (reverse 0..($i-1)) {
+                    my $l = $lines[$j];
+                    $depth++ while $l =~ /\}/g;
+                    $depth-- while $l =~ /\{/g;
+                    if ($depth == 0) {
+                        push @scopes, [$j, $i, $name];
+                        last;
+                    }
+                }
+            }
+
+            # Pass 2: for each Event/Cancellable field, find enclosing scopes.
+            for my $i (0..$#lines) {
+                next unless $lines[$i] =~ /(?:Event|Cancellable)<.*>\s+([a-zA-Z_]\w*)\s*;/;
+                my $field = $1;
+                # Collect enclosing named scopes (sorted by start line = outermost first)
+                my @path;
+                for my $s (sort { $a->[0] <=> $b->[0] } @scopes) {
+                    push @path, $s->[2] if $s->[0] < $i && $i < $s->[1];
+                }
+                push @path, $field;
+                my $full = join(".", @path);
+                if (exists $MAP{$full}) {
+                    print "$MAP{$full}\n";
+                } else {
+                    print "UNMAPPED:$full\n";
+                }
+            }
+        ' "$bus_header" | sort -u
+    else
+        # Legacy: pre-0.54 used EMIT_HOOK_EVENT macros
+        find "$TARGET_DIR/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+            | xargs -0 perl -ne 'while(/EMIT_HOOK_EVENT(?:_CANCELLABLE)?\("([^"]+)"/g){print "$1\n"}' \
+            | awk '/^[A-Za-z][A-Za-z0-9]*$/' \
+            | sort -u
+    fi
 }
 
 extract_sdk_hooks() {
@@ -187,8 +294,15 @@ extract_source_plugin_api_methods() {
 }
 
 extract_sdk_plugin_api_methods() {
+    # Skip deprecated API calls that our bridge still uses for now.
+    local -a DEPRECATED=(addLayout removeLayout addDispatcher registerCallbackDynamic
+                         unregisterCallback getFunctionAddressFromSignature)
+    local filter
+    filter=$(printf '%s\n' "${DEPRECATED[@]}" | paste -sd'|')
+
     perl -ne 'while(/HyprlandAPI::([A-Za-z_][A-Za-z0-9_]*)\(/g){print "$1\n"}' \
         src/plugin/bridge/*.cpp \
+        | grep -Ev "^($filter)$" \
         | sort -u
 }
 

@@ -41,3 +41,34 @@ __attribute__((weak)) CHyprColor::CHyprColor(uint64_t argb)
 namespace Log {
 __attribute__((weak)) CLogger::CLogger() = default;
 }
+
+// Layout virtual method stubs — these live in the Hyprland binary but are
+// needed at link time for the bridge's vtables when building test binaries.
+#include <hyprland/src/layout/algorithm/ModeAlgorithm.hpp>
+#include <hyprland/src/layout/algorithm/TiledAlgorithm.hpp>
+#include <hyprland/src/layout/algorithm/FloatingAlgorithm.hpp>
+
+namespace Layout {
+__attribute__((weak)) std::expected<void, std::string> IModeAlgorithm::layoutMsg(const std::string_view&) {
+    return std::unexpected(std::string("not implemented"));
+}
+__attribute__((weak)) std::optional<Vector2D> IModeAlgorithm::predictSizeForNewTarget() {
+    return std::nullopt;
+}
+__attribute__((weak)) std::optional<Vector2D> IModeAlgorithm::focalPointForDir(SP<ITarget>, Math::eDirection) {
+    return std::nullopt;
+}
+__attribute__((weak)) void IFloatingAlgorithm::recenter(SP<ITarget>) {}
+__attribute__((weak)) void IFloatingAlgorithm::recalculate() {}
+}
+
+// HyprlandAPI stubs — only the running compositor provides the real implementations.
+__attribute__((weak)) bool HyprlandAPI::addTiledAlgo(HANDLE, const std::string&, const std::type_info*, std::function<UP<Layout::ITiledAlgorithm>()>&&) {
+    return false;
+}
+__attribute__((weak)) bool HyprlandAPI::addFloatingAlgo(HANDLE, const std::string&, const std::type_info*, std::function<UP<Layout::IFloatingAlgorithm>()>&&) {
+    return false;
+}
+__attribute__((weak)) bool HyprlandAPI::removeAlgo(HANDLE, const std::string&) {
+    return false;
+}

@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use hyprs_sdk::ipc::events::parse_event;
+use std::hint::black_box;
 
 // WHY: Needed for correctness and maintainability: -- Realistic event lines ------------------------------------------------
 

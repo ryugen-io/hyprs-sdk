@@ -1,9 +1,9 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use hyprs_sdk::ipc::responses::*;
 use hyprs_sdk::types::monitor::Monitor;
 use hyprs_sdk::types::window::Window;
 use hyprs_sdk::types::workspace::Workspace;
+use std::hint::black_box;
 
 // WHY: Needed for correctness and maintainability: -- Realistic JSON payloads -----------------------------------------------
 

@@ -146,11 +146,6 @@ pub fn rolling_log(flags: Flags) -> String {
     flagged(flags, "rollinglog")
 }
 
-/// List available layout managers.
-pub fn layouts(flags: Flags) -> String {
-    flagged(flags, "layouts")
-}
-
 /// List configuration errors.
 pub fn config_errors(flags: Flags) -> String {
     flagged(flags, "configerrors")

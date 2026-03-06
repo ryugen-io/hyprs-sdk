@@ -1,0 +1,343 @@
+//! Floating layout algorithm registration.
+//!
+//! v0.54 split the monolithic `IHyprLayout` into tiled and floating halves.
+//! This module covers the floating side — plugins that need to control
+//! non-tiled window placement register here via `IFloatingAlgorithm`.
+
+use std::ffi::c_void;
+use std::os::raw::c_char;
+
+use crate::error::{HyprError, HyprResult};
+use crate::plugin::types::PluginHandle;
+
+use super::common::{Direction, FocalPoint, ModeAlgorithm, RectCorner};
+
+/// Trait for floating layout algorithms.
+///
+/// Extends [`ModeAlgorithm`] with floating-specific operations.
+/// Maps to `IFloatingAlgorithm` in C++ (v0.54+).
+pub trait FloatingAlgorithm: ModeAlgorithm {
+    /// Move a target by a delta offset.
+    fn move_target(&mut self, dx: f64, dy: f64, target: *mut c_void);
+
+    /// Set a target's absolute geometry (position + size).
+    fn set_target_geom(&mut self, x: f64, y: f64, w: f64, h: f64, target: *mut c_void);
+}
+
+/// Factory trait for creating floating algorithm instances.
+///
+/// Hyprland calls the factory each time a workspace needs a new algorithm
+/// instance. The factory must be `Send + Sync + 'static`.
+pub trait FloatingAlgorithmFactory: Send + Sync + 'static {
+    /// The algorithm type this factory creates.
+    type Algo: FloatingAlgorithm;
+
+    /// Create a new algorithm instance.
+    fn create(&self) -> Self::Algo;
+}
+
+// Vtable layout must match the C++ struct in bridge_layout_floating.cpp exactly,
+// or the bridge will call wrong function pointers and corrupt memory.
+
+#[repr(C)]
+struct ModeAlgoVtable {
+    new_target: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    moved_target: unsafe extern "C" fn(*mut c_void, *mut c_void, bool, f64, f64),
+    remove_target: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    resize_target: unsafe extern "C" fn(*mut c_void, f64, f64, *mut c_void, u8),
+    recalculate: unsafe extern "C" fn(*mut c_void),
+    swap_targets: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    move_target_in_direction: unsafe extern "C" fn(*mut c_void, *mut c_void, i8, bool),
+    layout_msg: unsafe extern "C" fn(
+        *mut c_void,
+        *const c_char,
+        usize,
+        *mut *mut c_char,
+        *mut usize,
+    ) -> bool,
+    predict_size: unsafe extern "C" fn(*mut c_void, *mut f64, *mut f64) -> bool,
+    drop_fn: unsafe extern "C" fn(*mut c_void),
+}
+
+#[repr(C)]
+struct FloatingAlgoVtable {
+    base: ModeAlgoVtable,
+    move_target_delta: unsafe extern "C" fn(*mut c_void, f64, f64, *mut c_void),
+    set_target_geom: unsafe extern "C" fn(*mut c_void, f64, f64, f64, f64, *mut c_void),
+    factory_fn: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+}
+
+struct AlgoData<T: FloatingAlgorithm> {
+    inner: T,
+}
+
+struct FactoryData<F: FloatingAlgorithmFactory> {
+    factory: F,
+}
+
+unsafe extern "C" {
+    fn malloc(size: usize) -> *mut c_void;
+}
+
+fn malloc_copy(data: &[u8]) -> *mut c_char {
+    if data.is_empty() {
+        return std::ptr::null_mut();
+    }
+    // SAFETY: C++ bridge frees this with std::free, so we must allocate with malloc.
+    unsafe {
+        let ptr = malloc(data.len()).cast::<c_char>();
+        if !ptr.is_null() {
+            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr.cast(), data.len());
+        }
+        ptr
+    }
+}
+
+// Duplicated from tiled.rs because each must be monomorphized over the specific
+// FloatingAlgorithm type, not TiledAlgorithm. Sharing via generics would require
+// a shared ModeAlgorithm bound which doesn't carry the layout-specific vtable.
+
+unsafe extern "C" fn tramp_new_target<T: FloatingAlgorithm>(ctx: *mut c_void, target: *mut c_void) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.new_target(target);
+}
+
+unsafe extern "C" fn tramp_moved_target<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    target: *mut c_void,
+    has_focal: bool,
+    fx: f64,
+    fy: f64,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    let focal = if has_focal {
+        Some(FocalPoint { x: fx, y: fy })
+    } else {
+        None
+    };
+    data.inner.moved_target(target, focal);
+}
+
+unsafe extern "C" fn tramp_remove_target<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    target: *mut c_void,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.remove_target(target);
+}
+
+unsafe extern "C" fn tramp_resize_target<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    dx: f64,
+    dy: f64,
+    target: *mut c_void,
+    corner: u8,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    let c = match corner {
+        1 => RectCorner::TopLeft,
+        2 => RectCorner::TopRight,
+        4 => RectCorner::BottomRight,
+        8 => RectCorner::BottomLeft,
+        _ => RectCorner::None,
+    };
+    data.inner.resize_target(dx, dy, target, c);
+}
+
+unsafe extern "C" fn tramp_recalculate<T: FloatingAlgorithm>(ctx: *mut c_void) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.recalculate();
+}
+
+unsafe extern "C" fn tramp_swap_targets<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    a: *mut c_void,
+    b: *mut c_void,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.swap_targets(a, b);
+}
+
+unsafe extern "C" fn tramp_move_dir<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    target: *mut c_void,
+    dir: i8,
+    silent: bool,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    let d = match dir {
+        0 => Direction::Up,
+        1 => Direction::Right,
+        2 => Direction::Down,
+        3 => Direction::Left,
+        _ => Direction::Default,
+    };
+    data.inner.move_target_in_direction(target, d, silent);
+}
+
+unsafe extern "C" fn tramp_layout_msg<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    msg_ptr: *const c_char,
+    msg_len: usize,
+    out_ptr: *mut *mut c_char,
+    out_len: *mut usize,
+) -> bool {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    let msg = if msg_len > 0 && !msg_ptr.is_null() {
+        let bytes = unsafe { std::slice::from_raw_parts(msg_ptr.cast::<u8>(), msg_len) };
+        String::from_utf8_lossy(bytes)
+    } else {
+        std::borrow::Cow::Borrowed("")
+    };
+
+    match data.inner.layout_msg(msg.as_ref()) {
+        Ok(()) => {
+            unsafe {
+                *out_ptr = std::ptr::null_mut();
+                *out_len = 0;
+            }
+            true
+        }
+        Err(err) => {
+            let buf = malloc_copy(err.as_bytes());
+            unsafe {
+                *out_ptr = buf;
+                *out_len = err.len();
+            }
+            false
+        }
+    }
+}
+
+unsafe extern "C" fn tramp_predict_size<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    out_x: *mut f64,
+    out_y: *mut f64,
+) -> bool {
+    let data = unsafe { &*(ctx as *const AlgoData<T>) };
+    match data.inner.predict_size_for_new_target() {
+        Some((x, y)) => {
+            unsafe {
+                *out_x = x;
+                *out_y = y;
+            }
+            true
+        }
+        None => false,
+    }
+}
+
+unsafe extern "C" fn tramp_drop<T: FloatingAlgorithm>(ctx: *mut c_void) {
+    if !ctx.is_null() {
+        unsafe {
+            drop(Box::from_raw(ctx as *mut AlgoData<T>));
+        }
+    }
+}
+
+unsafe extern "C" fn tramp_move_target_delta<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    dx: f64,
+    dy: f64,
+    target: *mut c_void,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.move_target(dx, dy, target);
+}
+
+unsafe extern "C" fn tramp_set_target_geom<T: FloatingAlgorithm>(
+    ctx: *mut c_void,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    target: *mut c_void,
+) {
+    let data = unsafe { &mut *(ctx as *mut AlgoData<T>) };
+    data.inner.set_target_geom(x, y, w, h, target);
+}
+
+unsafe extern "C" fn tramp_factory<F: FloatingAlgorithmFactory>(
+    factory_data: *mut c_void,
+) -> *mut c_void {
+    let fdata = unsafe { &*(factory_data as *const FactoryData<F>) };
+    let algo = fdata.factory.create();
+    let boxed = Box::new(AlgoData { inner: algo });
+    Box::into_raw(boxed).cast()
+}
+
+fn build_floating_vtable<F: FloatingAlgorithmFactory>() -> FloatingAlgoVtable {
+    FloatingAlgoVtable {
+        base: ModeAlgoVtable {
+            new_target: tramp_new_target::<F::Algo>,
+            moved_target: tramp_moved_target::<F::Algo>,
+            remove_target: tramp_remove_target::<F::Algo>,
+            resize_target: tramp_resize_target::<F::Algo>,
+            recalculate: tramp_recalculate::<F::Algo>,
+            swap_targets: tramp_swap_targets::<F::Algo>,
+            move_target_in_direction: tramp_move_dir::<F::Algo>,
+            layout_msg: tramp_layout_msg::<F::Algo>,
+            predict_size: tramp_predict_size::<F::Algo>,
+            drop_fn: tramp_drop::<F::Algo>,
+        },
+        move_target_delta: tramp_move_target_delta::<F::Algo>,
+        set_target_geom: tramp_set_target_geom::<F::Algo>,
+        factory_fn: tramp_factory::<F>,
+    }
+}
+
+unsafe extern "C" {
+    #[link_name = "hyprland_api_add_floating_algo"]
+    fn ffi_add_floating_algo(
+        handle: *mut c_void,
+        name_ptr: *const c_char,
+        name_len: usize,
+        factory_data: *mut c_void,
+        vtable: *const FloatingAlgoVtable,
+    ) -> bool;
+}
+
+/// Register a floating layout algorithm factory.
+///
+/// Hyprland will call the factory to create instances as needed.
+/// Use [`super::remove_algo`] to unregister by name.
+///
+/// # Errors
+///
+/// Returns [`HyprError::NullHandle`] if the plugin handle is null.
+/// Returns [`HyprError::Plugin`] if Hyprland rejects the registration.
+pub fn register_floating_algo<F: FloatingAlgorithmFactory>(
+    handle: PluginHandle,
+    name: &str,
+    factory: F,
+) -> HyprResult<()> {
+    if handle.is_null() {
+        return Err(HyprError::NullHandle);
+    }
+
+    let fdata = Box::new(FactoryData { factory });
+    let fdata_ptr = Box::into_raw(fdata).cast::<c_void>();
+    let vtable = build_floating_vtable::<F>();
+
+    let ok = unsafe {
+        ffi_add_floating_algo(
+            handle.0,
+            name.as_ptr().cast(),
+            name.len(),
+            fdata_ptr,
+            &vtable,
+        )
+    };
+
+    if ok {
+        Ok(())
+    } else {
+        // On failure, C++ didn't take ownership — reclaim to avoid leak.
+        unsafe {
+            drop(Box::from_raw(fdata_ptr as *mut FactoryData<F>));
+        }
+        Err(HyprError::Plugin(format!(
+            "failed to register floating algo: {name}"
+        )))
+    }
+}

@@ -3,7 +3,7 @@
 //! Hyprland emits hook events at key lifecycle points. Plugins subscribe
 //! via `registerCallbackDynamic` with an event name string. This module
 //! provides a strongly-typed enum covering all 50 events found in the
-//! Hyprland v0.53.0 source.
+//! Hyprland source.
 //!
 //! Events are either **cancellable** (input events — setting
 //! `CallbackInfo::cancelled = true` stops propagation) or
@@ -120,9 +120,9 @@ pub enum HookEvent {
     /// Data: `PHLWINDOW`
     Urgent,
 
-    /// Window floating state toggled.
+    /// Window class changed.
     /// Data: `PHLWINDOW`
-    ChangeFloatingMode,
+    WindowClass,
 
     /// Window pinned/unpinned.
     /// Data: `PHLWINDOW`
@@ -207,8 +207,24 @@ pub enum HookEvent {
     TouchMove,
 
     /// Tablet pen tip event. Set `cancelled = true` to consume.
-    /// Data: `ITablet::STabletToolTipEvent`
+    /// Data: `CTablet::STipEvent`
     TabletTip,
+
+    /// Tablet axis event. Set `cancelled = true` to consume.
+    /// Data: `CTablet::SAxisEvent`
+    TabletAxis,
+
+    /// Tablet button event. Set `cancelled = true` to consume.
+    /// Data: `CTablet::SButtonEvent`
+    TabletButton,
+
+    /// Tablet proximity event. Set `cancelled = true` to consume.
+    /// Data: `CTablet::SProximityEvent`
+    TabletProximity,
+
+    /// Touch cancel event. Set `cancelled = true` to consume.
+    /// Data: `ITouch::SCancelEvent`
+    TouchCancel,
 
     /// Touchpad swipe gesture started. Set `cancelled = true` to consume.
     /// Data: `IPointer::SSwipeBeginEvent`
@@ -271,7 +287,7 @@ impl HookEvent {
             Self::WindowTitle => "windowTitle",
             Self::ActiveWindow => "activeWindow",
             Self::Urgent => "urgent",
-            Self::ChangeFloatingMode => "changeFloatingMode",
+            Self::WindowClass => "windowClass",
             Self::Pin => "pin",
             Self::Fullscreen => "fullscreen",
             Self::WindowUpdateRules => "windowUpdateRules",
@@ -301,6 +317,10 @@ impl HookEvent {
             Self::TouchUp => "touchUp",
             Self::TouchMove => "touchMove",
             Self::TabletTip => "tabletTip",
+            Self::TabletAxis => "tabletAxis",
+            Self::TabletButton => "tabletButton",
+            Self::TabletProximity => "tabletProximity",
+            Self::TouchCancel => "touchCancel",
             Self::SwipeBegin => "swipeBegin",
             Self::SwipeUpdate => "swipeUpdate",
             Self::SwipeEnd => "swipeEnd",
@@ -325,7 +345,11 @@ impl HookEvent {
                 | Self::TouchDown
                 | Self::TouchUp
                 | Self::TouchMove
+                | Self::TouchCancel
                 | Self::TabletTip
+                | Self::TabletAxis
+                | Self::TabletButton
+                | Self::TabletProximity
                 | Self::SwipeBegin
                 | Self::SwipeUpdate
                 | Self::SwipeEnd
@@ -363,7 +387,7 @@ impl HookEvent {
             "windowTitle" => Some(Self::WindowTitle),
             "activeWindow" => Some(Self::ActiveWindow),
             "urgent" => Some(Self::Urgent),
-            "changeFloatingMode" => Some(Self::ChangeFloatingMode),
+            "windowClass" => Some(Self::WindowClass),
             "pin" => Some(Self::Pin),
             "fullscreen" => Some(Self::Fullscreen),
             "windowUpdateRules" => Some(Self::WindowUpdateRules),
@@ -383,6 +407,10 @@ impl HookEvent {
             "touchUp" => Some(Self::TouchUp),
             "touchMove" => Some(Self::TouchMove),
             "tabletTip" => Some(Self::TabletTip),
+            "tabletAxis" => Some(Self::TabletAxis),
+            "tabletButton" => Some(Self::TabletButton),
+            "tabletProximity" => Some(Self::TabletProximity),
+            "touchCancel" => Some(Self::TouchCancel),
             "swipeBegin" => Some(Self::SwipeBegin),
             "swipeUpdate" => Some(Self::SwipeUpdate),
             "swipeEnd" => Some(Self::SwipeEnd),
@@ -393,11 +421,8 @@ impl HookEvent {
         }
     }
 
-    /// Total number of known hook events.
-    pub const COUNT: usize = 50;
-
     /// All known hook events.
-    pub const ALL: [HookEvent; 50] = [
+    pub const ALL: &[HookEvent] = &[
         Self::Ready,
         Self::Tick,
         Self::PreConfigReload,
@@ -422,7 +447,7 @@ impl HookEvent {
         Self::WindowTitle,
         Self::ActiveWindow,
         Self::Urgent,
-        Self::ChangeFloatingMode,
+        Self::WindowClass,
         Self::Pin,
         Self::Fullscreen,
         Self::WindowUpdateRules,
@@ -442,6 +467,10 @@ impl HookEvent {
         Self::TouchUp,
         Self::TouchMove,
         Self::TabletTip,
+        Self::TabletAxis,
+        Self::TabletButton,
+        Self::TabletProximity,
+        Self::TouchCancel,
         Self::SwipeBegin,
         Self::SwipeUpdate,
         Self::SwipeEnd,
@@ -449,6 +478,9 @@ impl HookEvent {
         Self::PinchUpdate,
         Self::PinchEnd,
     ];
+
+    /// Total number of known hook events.
+    pub const COUNT: usize = Self::ALL.len();
 }
 
 impl std::fmt::Display for HookEvent {

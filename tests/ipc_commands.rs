@@ -207,7 +207,7 @@ fn remaining_query_commands_with_json_flag() {
         (commands::global_shortcuts, "globalshortcuts"),
         (commands::animations, "animations"),
         (commands::rolling_log, "rollinglog"),
-        (commands::layouts, "layouts"),
+        (commands::layers, "layers"),
         (commands::config_errors, "configerrors"),
         (commands::locked, "locked"),
         (commands::descriptions, "descriptions"),

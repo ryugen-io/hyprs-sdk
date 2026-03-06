@@ -111,7 +111,7 @@ pub struct CallbackInfo {
 pub struct VersionInfo {
     /// Git commit hash.
     pub hash: String,
-    /// Version tag (e.g. "v0.53.0").
+    /// Version tag (e.g. "v0.54.1").
     pub tag: String,
     /// Whether the build had uncommitted changes.
     pub dirty: bool,

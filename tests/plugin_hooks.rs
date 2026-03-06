@@ -2,13 +2,13 @@ use hyprs_sdk::plugin::HookEvent;
 
 #[test]
 fn hook_event_count() {
-    assert_eq!(HookEvent::COUNT, 50);
-    assert_eq!(HookEvent::ALL.len(), 50);
+    assert_eq!(HookEvent::COUNT, 54);
+    assert_eq!(HookEvent::ALL.len(), 54);
 }
 
 #[test]
 fn hook_event_names_roundtrip() {
-    for event in &HookEvent::ALL {
+    for event in HookEvent::ALL {
         let name = event.event_name();
         let parsed = HookEvent::from_name(name);
         assert_eq!(parsed, Some(*event), "roundtrip failed for {name}");
@@ -26,7 +26,7 @@ fn cancellable_events() {
         .iter()
         .filter(|e| e.is_cancellable())
         .collect();
-    assert_eq!(cancellable.len(), 14);
+    assert_eq!(cancellable.len(), 18);
 }
 
 #[test]
@@ -65,10 +65,7 @@ fn hook_event_display() {
 fn specific_event_names() {
     assert_eq!(HookEvent::PreMonitorAdded.event_name(), "preMonitorAdded");
     assert_eq!(HookEvent::MoveWorkspace.event_name(), "moveWorkspace");
-    assert_eq!(
-        HookEvent::ChangeFloatingMode.event_name(),
-        "changeFloatingMode"
-    );
+    assert_eq!(HookEvent::WindowClass.event_name(), "windowClass");
     assert_eq!(
         HookEvent::WindowUpdateRules.event_name(),
         "windowUpdateRules"

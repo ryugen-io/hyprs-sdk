@@ -134,11 +134,6 @@ pub enum Event {
     Fullscreen {
         enabled: bool,
     },
-    /// Floating mode toggled.
-    ChangeFloatingMode {
-        address: WindowAddress,
-        is_tiled: bool,
-    },
     /// Window urgent hint.
     Urgent {
         address: WindowAddress,
@@ -156,11 +151,6 @@ pub enum Event {
 
     // Group (tabbed window) events form their own category because group membership affects
     // layout and rendering independently of individual window state.
-    /// Window group toggled.
-    ToggleGroup {
-        state: bool,
-        addresses: Vec<WindowAddress>,
-    },
     /// Groups locked/unlocked.
     LockGroups {
         locked: bool,
@@ -212,6 +202,12 @@ pub enum Event {
         active: bool,
         owner: String,
     },
+    /// Screencast state changed (v2 with name).
+    ScreencastV2 {
+        active: bool,
+        owner: String,
+        name: String,
+    },
     /// Configuration reloaded.
     ConfigReloaded,
     /// Custom user event (from `dispatch event` command).
@@ -257,11 +253,9 @@ impl Event {
             Self::MoveWindow { .. } => "movewindow",
             Self::MoveWindowV2 { .. } => "movewindowv2",
             Self::Fullscreen { .. } => "fullscreen",
-            Self::ChangeFloatingMode { .. } => "changefloatingmode",
             Self::Urgent { .. } => "urgent",
             Self::Minimized { .. } => "minimized",
             Self::Pin { .. } => "pin",
-            Self::ToggleGroup { .. } => "togglegroup",
             Self::LockGroups { .. } => "lockgroups",
             Self::MoveIntoGroup { .. } => "moveintogroup",
             Self::MoveOutOfGroup { .. } => "moveoutofgroup",
@@ -272,6 +266,7 @@ impl Event {
             Self::Submap { .. } => "submap",
             Self::Bell { .. } => "bell",
             Self::Screencast { .. } => "screencast",
+            Self::ScreencastV2 { .. } => "screencastv2",
             Self::ConfigReloaded => "configreloaded",
             Self::Custom { .. } => "custom",
             Self::Unknown { name, .. } => name.as_str(),
@@ -338,34 +333,22 @@ impl Event {
                 workspace_name,
             } => format!("{},{workspace_id},{workspace_name}", format_addr(*address)),
             Self::Fullscreen { enabled } => bool_as_int(*enabled).to_string(),
-            Self::ChangeFloatingMode { address, is_tiled } => {
-                format!("{},{}", format_addr(*address), bool_as_int(*is_tiled))
-            }
             Self::Minimized { address, minimized } => {
                 format!("{},{}", format_addr(*address), bool_as_int(*minimized))
             }
             Self::Pin { address, pinned } => {
                 format!("{},{}", format_addr(*address), bool_as_int(*pinned))
             }
-            Self::ToggleGroup { state, addresses } => {
-                let mut data = bool_as_int(*state).to_string();
-                if !addresses.is_empty() {
-                    data.push(',');
-                    data.push_str(
-                        &addresses
-                            .iter()
-                            .map(|a| format_addr(*a))
-                            .collect::<Vec<_>>()
-                            .join(","),
-                    );
-                }
-                data
-            }
             Self::LockGroups { locked } => bool_as_int(*locked).to_string(),
             Self::IgnoreGroupLock { enabled } => bool_as_int(*enabled).to_string(),
             Self::ActiveLayout { keyboard, layout } => format!("{keyboard},{layout}"),
             Self::Bell { address } => address.clone(),
             Self::Screencast { active, owner } => format!("{},{}", bool_as_int(*active), owner),
+            Self::ScreencastV2 {
+                active,
+                owner,
+                name,
+            } => format!("{},{},{}", bool_as_int(*active), owner, name),
             Self::ConfigReloaded => String::new(),
             Self::Custom { data } => data.clone(),
             Self::Unknown { data, .. } => data.clone(),

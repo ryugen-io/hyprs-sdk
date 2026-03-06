@@ -177,13 +177,6 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
         "fullscreen" => Event::Fullscreen {
             enabled: data == "1",
         },
-        "changefloatingmode" => {
-            let (addr, tiled) = split2(data);
-            Event::ChangeFloatingMode {
-                address: parse_addr(addr),
-                is_tiled: tiled == "1",
-            }
-        }
         "urgent" => Event::Urgent {
             address: parse_addr(data),
         },
@@ -202,20 +195,6 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             }
         }
 
-        // Group events: togglegroup includes a variable-length list of member addresses
-        // after the state flag, requiring split + filter to handle empty trailing fields.
-        "togglegroup" => {
-            let (state, rest) = split2(data);
-            let addresses = rest
-                .split(',')
-                .filter(|s| !s.is_empty())
-                .map(parse_addr)
-                .collect();
-            Event::ToggleGroup {
-                state: state == "1",
-                addresses,
-            }
-        }
         "lockgroups" => Event::LockGroups {
             locked: data == "1",
         },
@@ -260,6 +239,15 @@ fn parse_event_inner(name: &str, data: &str) -> Event {
             Event::Screencast {
                 active: state == "1",
                 owner: owner.to_string(),
+            }
+        }
+        "screencastv2" => {
+            let (state, rest) = split2(data);
+            let (owner, name) = split2(rest);
+            Event::ScreencastV2 {
+                active: state == "1",
+                owner: owner.to_string(),
+                name: name.to_string(),
             }
         }
         "configreloaded" => Event::ConfigReloaded,

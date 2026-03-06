@@ -3,8 +3,8 @@
 //! Covers Socket1 (request/response) and Socket2 (event stream).
 
 pub mod client;
-mod common;
 pub mod commands;
+mod common;
 pub mod events;
 pub mod instance;
 pub mod responses;

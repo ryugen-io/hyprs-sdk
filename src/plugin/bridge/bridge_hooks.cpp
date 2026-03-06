@@ -1,11 +1,14 @@
 // Hook event callback bridge functions.
+//
+// v0.54 deprecated registerCallbackDynamic (returns nullptr, HOOK_CALLBACK_FN
+// is a dummy class). This bridge compiles but is non-functional until we
+// migrate to the new CEventBus signal system.
 #include "common.h"
 
-// Bridge stores the Rust callback + user_data and wraps it in HOOK_CALLBACK_FN.
 struct HookBridgeData {
     void (*callback)(void* user_data, void* callback_info, void* event_data);
     void* user_data;
-    SP<HOOK_CALLBACK_FN> sp; // prevent deallocation
+    SP<HOOK_CALLBACK_FN> sp;
 };
 
 extern "C" void* hyprland_api_register_callback(
@@ -14,29 +17,15 @@ extern "C" void* hyprland_api_register_callback(
     void (*callback)(void* user_data, void* callback_info, void* event_data),
     void* user_data
 ) {
+    // v0.54 gutted registerCallbackDynamic — it always returns nullptr.
+    // Keep the bridge signature intact so Rust FFI declarations stay valid;
+    // the Rust side already handles nullptr as a registration failure.
     std::string event(event_ptr, event_len);
-
-    auto rust_cb = callback;
-    auto rust_ud = user_data;
-
-    HOOK_CALLBACK_FN fn = [rust_cb, rust_ud](void* /* owner */, SCallbackInfo& info, std::any data) {
-        // Pass the SCallbackInfo as a void* so Rust can set cancelled.
-        // Pass the std::any pointer (Rust can inspect via the bridge).
-        void* data_ptr = nullptr;
-        try {
-            if (data.type() != typeid(void))
-                data_ptr = &data;
-        } catch (...) {}
-        if (rust_cb)
-            rust_cb(rust_ud, static_cast<void*>(&info), data_ptr);
-    };
-
-    SP<HOOK_CALLBACK_FN> sp = HyprlandAPI::registerCallbackDynamic(handle, event, fn);
+    SP<HOOK_CALLBACK_FN> sp = HyprlandAPI::registerCallbackDynamic(handle, event, HOOK_CALLBACK_FN{});
     if (!sp)
         return nullptr;
 
-    // Allocate bridge data to keep the SP alive and allow cleanup.
-    auto* bridge = new HookBridgeData{rust_cb, rust_ud, sp};
+    auto* bridge = new HookBridgeData{callback, user_data, sp};
     return static_cast<void*>(bridge);
 }
 
@@ -44,7 +33,6 @@ extern "C" bool hyprland_api_unregister_callback(void* handle, void* callback_pt
     (void)handle;
     if (!callback_ptr) return false;
     auto* bridge = static_cast<HookBridgeData*>(callback_ptr);
-    // Reset the shared_ptr to unregister.
     bridge->sp.reset();
     delete bridge;
     return true;

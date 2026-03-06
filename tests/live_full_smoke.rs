@@ -119,7 +119,7 @@ async fn live_full_smoke_suite() -> HyprResult<()> {
         client.workspace_rules_typed(),
     )
     .await?;
-    let _ = maybe_step("layouts_typed", best_effort, client.layouts_typed()).await?;
+    let _ = maybe_step("layers_typed", best_effort, client.layers_typed()).await?;
     let _ = maybe_step(
         "config_errors_typed",
         best_effort,
