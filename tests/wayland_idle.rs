@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::idle::*;
+use hyprs_sdk::protocols::idle::*;
 
 #[test]
 fn idle_config_from_secs() {

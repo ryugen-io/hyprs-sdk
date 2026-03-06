@@ -1,4 +1,4 @@
-use hypr_sdk::types::common::{
+use hyprs_sdk::types::common::{
     ContentType, FullscreenMode, Layer, MonitorId, OutputTransform, WindowAddress, WorkspaceId,
     WorkspaceRef,
 };

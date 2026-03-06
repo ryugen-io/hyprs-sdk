@@ -18,8 +18,8 @@ use super::types::*;
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::screencopy::ScreencopyClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::screencopy::ScreencopyClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = ScreencopyClient::connect(&wl).unwrap();
@@ -277,7 +277,7 @@ fn create_shm_file(size: usize) -> HyprResult<std::fs::File> {
 
     let path = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let path =
-        std::path::PathBuf::from(path).join(format!("hypr-sdk-screencopy-{}", std::process::id()));
+        std::path::PathBuf::from(path).join(format!("hyprs-sdk-screencopy-{}", std::process::id()));
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)

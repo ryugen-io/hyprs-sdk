@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::foreign_toplevel::*;
+use hyprs_sdk::protocols::foreign_toplevel::*;
 
 #[test]
 fn toplevel_state_flags() {

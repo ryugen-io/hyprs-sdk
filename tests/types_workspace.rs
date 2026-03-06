@@ -1,5 +1,5 @@
-use hypr_sdk::types::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
-use hypr_sdk::types::workspace::Workspace;
+use hyprs_sdk::types::common::{FullscreenMode, MonitorId, WindowAddress, WorkspaceId};
+use hyprs_sdk::types::workspace::Workspace;
 
 const SAMPLE_JSON: &str = r#"{
     "id": 1,

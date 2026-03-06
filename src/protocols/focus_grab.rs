@@ -8,8 +8,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::focus_grab::FocusGrabClient;
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::focus_grab::FocusGrabClient;
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = FocusGrabClient::connect(&wl).unwrap();

@@ -1,8 +1,8 @@
-# hypr-sdk
+# hyprs-sdk
 
 Comprehensive Rust SDK for the [Hyprland](https://hyprland.org/) compositor.
 
-`hypr-sdk` combines IPC, typed dispatchers, event parsing, desktop data models, Wayland protocol clients, and plugin FFI bindings in one crate.
+`hyprs-sdk` combines IPC, typed dispatchers, event parsing, desktop data models, Wayland protocol clients, and plugin FFI bindings in one crate.
 
 Verified against Hyprland **v0.53.0**.
 
@@ -10,24 +10,24 @@ Verified against Hyprland **v0.53.0**.
 
 ```toml
 [dependencies]
-hypr-sdk = "0.1.0"
+hyprs-sdk = "0.1.0"
 ```
 
 Optional features:
 
 ```toml
 [dependencies]
-hypr-sdk = { version = "0.1.0", features = ["blocking", "wayland", "plugin-ffi"] }
+hyprs-sdk = { version = "0.1.0", features = ["blocking", "wayland", "plugin-ffi"] }
 ```
 
 ## Quick Start (Async IPC)
 
 ```rust,no_run
-use hypr_sdk::dispatch::{self, Direction};
-use hypr_sdk::ipc::{Event, EventStream, Flags, HyprlandClient};
+use hyprs_sdk::dispatch::{self, Direction};
+use hyprs_sdk::ipc::{Event, EventStream, Flags, HyprlandClient};
 
 #[tokio::main]
-async fn main() -> hypr_sdk::HyprResult<()> {
+async fn main() -> hyprs_sdk::HyprResult<()> {
     let client = HyprlandClient::current()?;
 
     // Raw query
@@ -68,8 +68,10 @@ async fn main() -> hypr_sdk::HyprResult<()> {
   - Async `HyprlandClient`
   - Typed JSON helpers (`*_typed` methods)
   - Blocking client via `blocking` feature
+- **HyprPM wrapper**
+  - `hyprs_sdk::hyprpm::HyprPm` for plugin repo lifecycle commands (`add/remove/enable/disable/update/list/reload/purge-cache`)
 - **Typed dispatchers**
-  - 72 dispatcher builders under `hypr_sdk::dispatch::*`
+  - 72 dispatcher builders under `hyprs_sdk::dispatch::*`
 - **Typed events**
   - Parsed Socket2 events via `Event` + `EventStream`
   - Unknown events preserved as `Event::Unknown`
@@ -89,7 +91,7 @@ async fn main() -> hypr_sdk::HyprResult<()> {
 ## Feature Flags
 
 - `blocking`: enables synchronous IPC client (`ipc::BlockingClient`)
-- `wayland`: enables Wayland protocol modules under `hypr_sdk::protocols`
+- `wayland`: enables Wayland protocol modules under `hyprs_sdk::protocols`
 - `plugin-ffi`: enables C++ bridge-backed plugin API integration
 
 Default features are empty.
@@ -99,9 +101,9 @@ Default features are empty.
 Blocking IPC client:
 
 ```rust,ignore
-use hypr_sdk::ipc::BlockingClient;
+use hyprs_sdk::ipc::BlockingClient;
 
-fn main() -> hypr_sdk::HyprResult<()> {
+fn main() -> hyprs_sdk::HyprResult<()> {
     let client = BlockingClient::current()?;
     let version = client.version_typed()?;
     println!("{} ({})", version.tag, version.hash);
@@ -109,12 +111,25 @@ fn main() -> hypr_sdk::HyprResult<()> {
 }
 ```
 
+HyprPM wrapper:
+
+```rust,no_run
+use hyprs_sdk::hyprpm::HyprPm;
+
+fn main() -> hyprs_sdk::HyprResult<()> {
+    let pm = HyprPm::new();
+    let out = pm.list()?;
+    println!("{}", out.stdout);
+    Ok(())
+}
+```
+
 Wayland protocol client (`wayland` feature):
 
 ```rust,ignore
-use hypr_sdk::protocols::connection::WaylandConnection;
+use hyprs_sdk::protocols::connection::WaylandConnection;
 
-fn main() -> hypr_sdk::HyprResult<()> {
+fn main() -> hyprs_sdk::HyprResult<()> {
     let wl = WaylandConnection::connect()?;
     for g in wl.globals() {
         println!("{} v{}", g.interface, g.version);
@@ -126,7 +141,7 @@ fn main() -> hypr_sdk::HyprResult<()> {
 Plugin lifecycle macro (`plugin-ffi` feature):
 
 ```rust,ignore
-use hypr_sdk::plugin::*;
+use hyprs_sdk::plugin::*;
 
 fn init(_handle: PluginHandle) -> Result<PluginDescription, String> {
     Ok(PluginDescription {
@@ -166,8 +181,27 @@ Live integration checks (requires a running Hyprland session):
 ```bash
 export HYPRLAND_INSTANCE_SIGNATURE="<your-signature>"
 scripts/live-ipc-smoke.sh
+scripts/live-full-smoke.sh
 scripts/live-plugin-e2e.sh
 ```
+
+Optional live-smoke toggles:
+
+```bash
+# visible on-screen marker (notify + temporary error banner)
+HYPR_SDK_SMOKE_VISUAL=1 scripts/live-full-smoke.sh
+
+# include extra mutating checks (reload/reloadshaders/forcerendererreload)
+HYPR_SDK_SMOKE_MUTATING=1 scripts/live-full-smoke.sh
+
+# also run plugin load/unload live test
+HYPR_SDK_INCLUDE_PLUGIN_SMOKE=1 scripts/live-full-smoke.sh
+```
+
+`scripts/live-full-smoke.sh` runs:
+- baseline live IPC smoke (`tests/live_ipc_smoke.rs`)
+- full read/set/dispatch smoke (`tests/live_full_smoke.rs`)
+- SDK vs `hyprctl` JSON parity smoke (`tests/live_cli_parity.rs`)
 
 `scripts/live-plugin-e2e.sh` builds a minimal C++ plugin fixture and requires
 Hyprland headers (via `pkg-config hyprland`) plus a C++ toolchain.

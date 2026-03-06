@@ -4,7 +4,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixListener;
 
 fn test_sock_path(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("hypr-sdk-test-{}-{name}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("hyprs-sdk-test-{}-{name}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     dir.join("test.sock")
 }
@@ -28,7 +28,7 @@ async fn request_sends_command_and_receives_response() {
         stream.write_all(b"[{\"id\":1}]").await.unwrap();
     });
 
-    let response = hypr_sdk::ipc::socket::request(&sock, "j/monitors")
+    let response = hyprs_sdk::ipc::socket::request(&sock, "j/monitors")
         .await
         .unwrap();
     assert_eq!(response, "[{\"id\":1}]");
@@ -49,7 +49,7 @@ async fn request_handles_empty_response() {
         // WHY: Needed for correctness and maintainability: Server closes without writing anything.
     });
 
-    let response = hypr_sdk::ipc::socket::request(&sock, "version")
+    let response = hyprs_sdk::ipc::socket::request(&sock, "version")
         .await
         .unwrap();
     assert!(response.is_empty());
@@ -73,7 +73,7 @@ async fn request_handles_large_response() {
         stream.write_all(expected_clone.as_bytes()).await.unwrap();
     });
 
-    let response = hypr_sdk::ipc::socket::request(&sock, "j/clients")
+    let response = hyprs_sdk::ipc::socket::request(&sock, "j/clients")
         .await
         .unwrap();
     assert_eq!(response.len(), 32_768);
@@ -96,7 +96,7 @@ async fn connect_event_stream_returns_readable_stream() {
             .unwrap();
     });
 
-    let mut stream = hypr_sdk::ipc::socket::connect_event_stream(&sock)
+    let mut stream = hyprs_sdk::ipc::socket::connect_event_stream(&sock)
         .await
         .unwrap();
     let mut buf = String::new();
@@ -109,6 +109,6 @@ async fn connect_event_stream_returns_readable_stream() {
 
 #[tokio::test]
 async fn request_fails_on_nonexistent_socket() {
-    let result = hypr_sdk::ipc::socket::request("/tmp/nonexistent.sock".as_ref(), "version").await;
+    let result = hyprs_sdk::ipc::socket::request("/tmp/nonexistent.sock".as_ref(), "version").await;
     assert!(result.is_err());
 }

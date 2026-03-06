@@ -62,8 +62,8 @@ pub enum IdleState {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::idle::{IdleClient, IdleNotificationConfig};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::idle::{IdleClient, IdleNotificationConfig};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = IdleClient::connect(&wl, IdleNotificationConfig::from_secs(300)).unwrap();

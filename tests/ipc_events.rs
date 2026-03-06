@@ -1,5 +1,5 @@
-use hypr_sdk::ipc::events::{Event, parse_event};
-use hypr_sdk::types::common::{WindowAddress, WorkspaceId};
+use hyprs_sdk::ipc::events::{Event, parse_event};
+use hyprs_sdk::types::common::{WindowAddress, WorkspaceId};
 
 #[test]
 fn parse_workspace_event() {

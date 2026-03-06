@@ -1,4 +1,4 @@
-use hypr_sdk::dispatch::*;
+use hyprs_sdk::dispatch::*;
 
 // WHY: Needed for correctness and maintainability: -- exec --------------------------------------------------------------------
 

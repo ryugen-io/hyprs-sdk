@@ -1,4 +1,4 @@
-use hypr_sdk::ipc::instance::{runtime_dir, socket1_path, socket2_path};
+use hyprs_sdk::ipc::instance::{runtime_dir, socket1_path, socket2_path};
 
 #[test]
 fn runtime_dir_uses_xdg() {

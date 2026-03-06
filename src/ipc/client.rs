@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use crate::dispatch::DispatchCmd;
 use crate::error::{HyprError, HyprResult};
 use crate::ipc::commands::{self, Flags};
+use crate::ipc::common::{normalize_window_selector, parse_json_or_command_error};
 use crate::ipc::instance::Instance;
 use crate::ipc::responses;
 use crate::ipc::socket;
@@ -202,13 +203,19 @@ impl HyprlandClient {
     }
 
     /// Get a window property.
-    pub async fn get_prop(
+    ///
+    /// `window_address` accepts either:
+    /// - a selector (e.g. `address:0xabc`, `class:^(kitty)$`)
+    /// - a raw window pointer address (`0xabc`), which is normalized to
+    ///   `address:0xabc` for `hyprctl getprop`.
+    pub async fn get_prop<P: AsRef<str>>(
         &self,
         window_address: &str,
-        property: &str,
+        property: P,
         flags: Flags,
     ) -> HyprResult<String> {
-        self.request(&commands::get_prop(window_address, property, flags))
+        let selector = normalize_window_selector(window_address);
+        self.request(&commands::get_prop(&selector, property.as_ref(), flags))
             .await
     }
 
@@ -219,8 +226,8 @@ impl HyprlandClient {
 
     /// Get window decorations.
     pub async fn decorations(&self, window_address: &str, flags: Flags) -> HyprResult<String> {
-        self.request(&commands::decorations(window_address, flags))
-            .await
+        let selector = normalize_window_selector(window_address);
+        self.request(&commands::decorations(&selector, flags)).await
     }
 
     // Typed queries force the `j` (JSON) flag and deserialize into Rust structs.
@@ -345,9 +352,13 @@ impl HyprlandClient {
         &self,
         window_address: &str,
     ) -> HyprResult<Vec<responses::DecorationInfo>> {
+        let selector = normalize_window_selector(window_address);
         let raw = self
-            .request(&commands::decorations(window_address, Flags::json()))
+            .request(&commands::decorations(&selector, Flags::json()))
             .await?;
+        if raw.trim() == "none" {
+            return Ok(Vec::new());
+        }
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
@@ -370,15 +381,20 @@ impl HyprlandClient {
     ///
     /// The shape of the returned value varies by property. Common
     /// properties: `"minSize"`, `"maxSize"`, `"alpha"`, `"alphaOverride"`.
-    pub async fn get_prop_value(
+    pub async fn get_prop_value<P: AsRef<str>>(
         &self,
         window_address: &str,
-        property: &str,
+        property: P,
     ) -> HyprResult<serde_json::Value> {
+        let selector = normalize_window_selector(window_address);
         let raw = self
-            .request(&commands::get_prop(window_address, property, Flags::json()))
+            .request(&commands::get_prop(
+                &selector,
+                property.as_ref(),
+                Flags::json(),
+            ))
             .await?;
-        serde_json::from_str(&raw).map_err(HyprError::Json)
+        parse_json_or_command_error(raw)
     }
 
     // Raw flagged queries let callers combine flags (json, all, config, reload) and handle

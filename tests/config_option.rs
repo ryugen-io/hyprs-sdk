@@ -1,4 +1,4 @@
-use hypr_sdk::config::*;
+use hyprs_sdk::config::*;
 
 #[test]
 fn config_option_type_from_raw() {

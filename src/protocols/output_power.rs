@@ -73,8 +73,8 @@ pub struct OutputPowerEntry {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::output_power::{OutputPowerClient, PowerMode};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::output_power::{OutputPowerClient, PowerMode};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = OutputPowerClient::connect(&wl).unwrap();

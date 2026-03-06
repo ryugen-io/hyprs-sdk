@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::ext_foreign_toplevel_list::*;
+use hyprs_sdk::protocols::ext_foreign_toplevel_list::*;
 
 #[test]
 fn ext_toplevel_info_defaults() {

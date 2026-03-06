@@ -54,8 +54,8 @@ impl LockSurfaceConfig {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::session_lock::SessionLockClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::session_lock::SessionLockClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = SessionLockClient::connect(&wl).unwrap();

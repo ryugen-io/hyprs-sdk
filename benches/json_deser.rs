@@ -1,8 +1,9 @@
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use hypr_sdk::ipc::responses::*;
-use hypr_sdk::types::monitor::Monitor;
-use hypr_sdk::types::window::Window;
-use hypr_sdk::types::workspace::Workspace;
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
+use hyprs_sdk::ipc::responses::*;
+use hyprs_sdk::types::monitor::Monitor;
+use hyprs_sdk::types::window::Window;
+use hyprs_sdk::types::workspace::Workspace;
 
 // WHY: Needed for correctness and maintainability: -- Realistic JSON payloads -----------------------------------------------
 
@@ -193,7 +194,7 @@ fn bench_option_value(c: &mut Criterion) {
 }
 
 fn bench_window_address(c: &mut Criterion) {
-    use hypr_sdk::types::common::WindowAddress;
+    use hyprs_sdk::types::common::WindowAddress;
 
     let mut group = c.benchmark_group("window_address_parse");
     group.bench_function("with_prefix", |b| {

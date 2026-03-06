@@ -1,7 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use hypr_sdk::dispatch::{self, Corner, Direction, ToggleState};
-use hypr_sdk::ipc::commands::{self, Flags};
+use hyprs_sdk::dispatch::{self, Corner, Direction, ToggleState};
+use hyprs_sdk::ipc::commands::{self, Flags};
 
 fn assert_dispatch(cmd: dispatch::DispatchCmd) {
     // Dispatch command names are always static, non-empty dispatcher IDs.

@@ -84,7 +84,7 @@ pub struct Window {
     pub fullscreen_client: FullscreenMode,
 
     /// Whether the window was created over a fullscreen window.
-    #[serde(rename = "overFullscreen")]
+    #[serde(default, rename = "overFullscreen")]
     pub over_fullscreen: bool,
 
     // Groups (tabbed containers) and user tags are stored per-window so that tools

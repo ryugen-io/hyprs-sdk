@@ -2,7 +2,7 @@ use std::ffi::{c_char, c_void};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use hypr_sdk::plugin::{PluginDescription, PluginHandle};
+use hyprs_sdk::plugin::{PluginDescription, PluginHandle};
 
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 static INIT_CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -16,7 +16,7 @@ fn test_init(_handle: PluginHandle) -> Result<PluginDescription, String> {
     }
 
     Ok(PluginDescription {
-        name: "hypr-sdk-test".into(),
+        name: "hyprs-sdk-test".into(),
         description: "lifecycle macro smoke".into(),
         author: "qa".into(),
         version: "0.1.0".into(),
@@ -27,7 +27,7 @@ fn test_exit() {
     EXIT_CALLS.fetch_add(1, Ordering::SeqCst);
 }
 
-hypr_sdk::hyprland_plugin! {
+hyprs_sdk::hyprland_plugin! {
     init: test_init,
     exit: test_exit,
 }
@@ -65,7 +65,7 @@ fn lifecycle_success_flow_exposes_description_and_clears_on_exit() {
             &mut version_len,
         ));
 
-        assert_eq!(read_bytes(name_ptr, name_len), "hypr-sdk-test");
+        assert_eq!(read_bytes(name_ptr, name_len), "hyprs-sdk-test");
         assert_eq!(read_bytes(desc_ptr, desc_len), "lifecycle macro smoke");
         assert_eq!(read_bytes(author_ptr, author_len), "qa");
         assert_eq!(read_bytes(version_ptr, version_len), "0.1.0");
@@ -141,5 +141,5 @@ fn lifecycle_exports_api_version_string() {
             .to_str()
             .expect("api version should be valid UTF-8")
     };
-    assert_eq!(version, hypr_sdk::plugin::HYPRLAND_API_VERSION);
+    assert_eq!(version, hyprs_sdk::plugin::HYPRLAND_API_VERSION);
 }

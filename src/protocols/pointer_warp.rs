@@ -6,8 +6,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::pointer_warp::PointerWarpClient;
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::pointer_warp::PointerWarpClient;
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = PointerWarpClient::connect(&wl).unwrap();

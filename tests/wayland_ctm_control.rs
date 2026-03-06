@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::ctm_control::*;
+use hyprs_sdk::protocols::ctm_control::*;
 
 #[test]
 fn identity_matrix() {

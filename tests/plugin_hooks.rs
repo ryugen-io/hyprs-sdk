@@ -1,4 +1,4 @@
-use hypr_sdk::plugin::HookEvent;
+use hyprs_sdk::plugin::HookEvent;
 
 #[test]
 fn hook_event_count() {

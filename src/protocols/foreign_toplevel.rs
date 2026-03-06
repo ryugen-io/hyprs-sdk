@@ -166,8 +166,8 @@ pub struct ForeignToplevelEntry {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::foreign_toplevel::{ForeignToplevelClient, ToplevelAction};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::foreign_toplevel::{ForeignToplevelClient, ToplevelAction};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = ForeignToplevelClient::connect(&wl).unwrap();

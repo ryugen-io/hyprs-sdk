@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::screencopy::*;
+use hyprs_sdk::protocols::screencopy::*;
 
 #[test]
 fn frame_format_buffer_size() {

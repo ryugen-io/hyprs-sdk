@@ -1,4 +1,4 @@
-use hypr_sdk::ipc::commands::{self, Flags};
+use hyprs_sdk::ipc::commands::{self, Flags};
 
 #[test]
 fn flags_default_is_no_flags() {

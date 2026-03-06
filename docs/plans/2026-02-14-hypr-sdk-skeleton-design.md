@@ -1,8 +1,8 @@
-# hypr-sdk Skeleton Design
+# hyprs-sdk Skeleton Design
 
 ## Crate
 
-- **Name**: `hypr-sdk` (`use hypr_sdk::...`)
+- **Name**: `hyprs-sdk` (`use hyprs_sdk::...`)
 - **Edition**: 2024, Rust nightly 1.94
 - **Type**: Library only, no binary
 

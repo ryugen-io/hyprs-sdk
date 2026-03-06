@@ -1,0 +1,19 @@
+name: source-drift-gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  drift-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Source Drift Audit (hard-fail)
+        run: ./scripts/update-sources.sh --audit

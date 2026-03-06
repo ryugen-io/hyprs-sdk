@@ -7,8 +7,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::virtual_keyboard::{VirtualKeyboardClient, KeyState};
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::virtual_keyboard::{VirtualKeyboardClient, KeyState};
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = VirtualKeyboardClient::connect(&wl).unwrap();
@@ -227,7 +227,7 @@ impl fmt::Debug for VirtualKeyboardClient {
 /// Create a temporary file in `$XDG_RUNTIME_DIR`.
 fn tempfile() -> std::io::Result<std::fs::File> {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let path = format!("{dir}/hypr-sdk-keymap-XXXXXX");
+    let path = format!("{dir}/hyprs-sdk-keymap-XXXXXX");
     let file = std::fs::File::options()
         .read(true)
         .write(true)

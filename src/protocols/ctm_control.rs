@@ -6,8 +6,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::ctm_control::{CtmControlClient, ColorTransformMatrix};
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::ctm_control::{CtmControlClient, ColorTransformMatrix};
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = CtmControlClient::connect(&wl).unwrap();

@@ -1,4 +1,4 @@
-use hypr_sdk::ipc::responses::*;
+use hyprs_sdk::ipc::responses::*;
 
 #[test]
 fn version_info_deserialize() {

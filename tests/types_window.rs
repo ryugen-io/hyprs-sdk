@@ -1,7 +1,7 @@
-use hypr_sdk::types::common::{
+use hyprs_sdk::types::common::{
     ContentType, FullscreenMode, WindowAddress, WorkspaceId, WorkspaceRef,
 };
-use hypr_sdk::types::window::Window;
+use hyprs_sdk::types::window::Window;
 
 const SAMPLE_JSON: &str = r#"{
     "address": "0x55a3f2c0",

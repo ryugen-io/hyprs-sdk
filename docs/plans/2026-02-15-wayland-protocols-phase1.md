@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add Wayland protocol infrastructure and the first 5 WLR protocol bindings (layer-shell, screencopy, gamma-control, output-management, output-power) to hypr-sdk.
+**Goal:** Add Wayland protocol infrastructure and the first 5 WLR protocol bindings (layer-shell, screencopy, gamma-control, output-management, output-power) to hyprs-sdk.
 
 **Architecture:** Use `wayland-client` for connection/event-queue management and `wayland-protocols-wlr` crate for pre-generated WLR protocol types. Each protocol gets a typed wrapper module under `src/protocols/`. A `WaylandConnection` struct manages connection lifecycle and registry globals. Feature-gated behind `wayland` feature flag so IPC-only users don't pull in wayland dependencies.
 
@@ -61,7 +61,7 @@ Create `tests/error_wayland.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::HyprError;
+use hyprs_sdk::HyprError;
 
 #[test]
 fn protocol_not_supported_error() {
@@ -136,7 +136,7 @@ Create `tests/wayland_connection.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::connection::WaylandConnection;
+use hyprs_sdk::protocols::connection::WaylandConnection;
 
 #[test]
 fn connect_fails_without_display() {
@@ -148,7 +148,7 @@ fn connect_fails_without_display() {
 
 #[test]
 fn global_registry_struct() {
-    use hypr_sdk::protocols::connection::GlobalInfo;
+    use hyprs_sdk::protocols::connection::GlobalInfo;
     let info = GlobalInfo {
         name: 1,
         interface: "wl_compositor".to_string(),
@@ -339,7 +339,7 @@ Create `tests/wayland_gamma_control.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::gamma_control;
+use hyprs_sdk::protocols::gamma_control;
 
 #[test]
 fn gamma_table_construction() {
@@ -500,7 +500,7 @@ Create `tests/wayland_output_power.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::output_power::PowerMode;
+use hyprs_sdk::protocols::output_power::PowerMode;
 
 #[test]
 fn power_mode_variants() {
@@ -609,7 +609,7 @@ Create `tests/wayland_output_management.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::output_management::*;
+use hyprs_sdk::protocols::output_management::*;
 
 #[test]
 fn output_mode_construction() {
@@ -782,7 +782,7 @@ Create `tests/wayland_screencopy.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::screencopy::*;
+use hyprs_sdk::protocols::screencopy::*;
 
 #[test]
 fn frame_format_construction() {
@@ -965,7 +965,7 @@ Create `tests/wayland_layer_shell.rs`:
 ```rust
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::layer_shell::*;
+use hyprs_sdk::protocols::layer_shell::*;
 
 #[test]
 fn layer_ordering() {

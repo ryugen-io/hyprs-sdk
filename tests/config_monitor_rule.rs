@@ -1,5 +1,5 @@
-use hypr_sdk::config::*;
-use hypr_sdk::types::common::OutputTransform;
+use hyprs_sdk::config::*;
+use hyprs_sdk::types::common::OutputTransform;
 
 #[test]
 fn monitor_rule_defaults() {

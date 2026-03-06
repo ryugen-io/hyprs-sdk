@@ -1,4 +1,4 @@
-use hypr_sdk::plugin::*;
+use hyprs_sdk::plugin::*;
 
 #[test]
 fn color_new() {
@@ -63,14 +63,14 @@ fn hyprctl_output_format_default() {
 
 #[test]
 fn function_hook_handle_null() {
-    let h = hypr_sdk::plugin::api::FunctionHookHandle::NULL;
+    let h = hyprs_sdk::plugin::api::FunctionHookHandle::NULL;
     assert!(h.is_null());
 }
 
 #[test]
 fn function_hook_handle_non_null() {
     let mut dummy: u8 = 0;
-    let h = hypr_sdk::plugin::api::FunctionHookHandle(std::ptr::addr_of_mut!(dummy).cast());
+    let h = hyprs_sdk::plugin::api::FunctionHookHandle(std::ptr::addr_of_mut!(dummy).cast());
     assert!(!h.is_null());
 }
 

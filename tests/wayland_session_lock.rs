@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::session_lock::*;
+use hyprs_sdk::protocols::session_lock::*;
 
 #[test]
 fn lock_state_variants() {

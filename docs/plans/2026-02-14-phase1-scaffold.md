@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Set up the hypr-sdk project skeleton so it compiles, has all module stubs, and is ready for feature implementation.
+**Goal:** Set up the hyprs-sdk project skeleton so it compiles, has all module stubs, and is ready for feature implementation.
 
 **Architecture:** Cargo library crate with edition 2024, async-first (tokio), module tree matching the design doc. All modules start as stubs with doc comments explaining their purpose. Tests live in `/tests` directory (integration test style).
 
@@ -19,7 +19,7 @@
 
 **Step 1: Initialize git repo**
 
-Run: `cd /code/git/ryugen-io/projects/rust/hyprland-rs/hypr-sdk && git init`
+Run: `cd /code/git/ryugen-io/projects/rust/hyprland-rs/hyprs-sdk && git init`
 
 **Step 2: Create rust-toolchain.toml**
 
@@ -42,12 +42,12 @@ channel = "nightly"
 
 ```toml
 [package]
-name = "hypr-sdk"
+name = "hyprs-sdk"
 version = "0.1.0"
 edition = "2024"
 description = "Comprehensive Rust SDK for the Hyprland compositor"
 license = "MIT"
-repository = "https://github.com/ryugen-io/hypr-sdk"
+repository = "https://github.com/ryugen-io/hyprs-sdk"
 
 [dependencies]
 thiserror = "2"
@@ -75,7 +75,7 @@ Expected: compiles with no errors
 
 ```bash
 git add Cargo.toml Cargo.lock .gitignore rust-toolchain.toml src/lib.rs CLAUDE.md docs/
-git commit -m "init: hypr-sdk project scaffold"
+git commit -m "init: hyprs-sdk project scaffold"
 ```
 
 ---
@@ -139,7 +139,7 @@ git commit -m "add: update-sources.sh for Hyprland source tracking"
 Create `tests/error.rs`:
 
 ```rust
-use hypr_sdk::error::HyprError;
+use hyprs_sdk::error::HyprError;
 
 #[test]
 fn error_display_io() {
@@ -178,7 +178,7 @@ Expected: FAIL — `src/error.rs` doesn't exist yet
 Create `src/error.rs`:
 
 ```rust
-/// Errors returned by hypr-sdk operations.
+/// Errors returned by hyprs-sdk operations.
 #[derive(Debug, thiserror::Error)]
 pub enum HyprError {
     /// I/O error (socket connection, read, write).
@@ -206,7 +206,7 @@ pub enum HyprError {
     InstanceNotFound(String),
 }
 
-/// Convenience result type for hypr-sdk.
+/// Convenience result type for hyprs-sdk.
 pub type HyprResult<T> = std::result::Result<T, HyprError>;
 ```
 
@@ -246,7 +246,7 @@ git commit -m "add: HyprError type with thiserror"
 Create `tests/types_common.rs`:
 
 ```rust
-use hypr_sdk::types::common::{MonitorId, WindowAddress, WorkspaceId};
+use hyprs_sdk::types::common::{MonitorId, WindowAddress, WorkspaceId};
 
 #[test]
 fn window_address_from_hex_string() {
@@ -416,7 +416,7 @@ git commit -m "add: common newtypes (WindowAddress, WorkspaceId, MonitorId)"
 **Step 1: Create a minimal README.md**
 
 ```markdown
-# hypr-sdk
+# hyprs-sdk
 
 Comprehensive Rust SDK for the Hyprland compositor.
 

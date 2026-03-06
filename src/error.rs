@@ -1,4 +1,4 @@
-/// Errors returned by hypr-sdk operations.
+/// Errors returned by hyprs-sdk operations.
 #[derive(Debug, thiserror::Error)]
 pub enum HyprError {
     /// I/O error (socket connection, read, write).
@@ -49,5 +49,5 @@ pub enum HyprError {
     NullHandle,
 }
 
-/// Convenience result type for hypr-sdk.
+/// Convenience result type for hyprs-sdk.
 pub type HyprResult<T> = std::result::Result<T, HyprError>;

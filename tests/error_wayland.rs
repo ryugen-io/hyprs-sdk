@@ -1,6 +1,6 @@
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::HyprError;
+use hyprs_sdk::HyprError;
 
 #[test]
 fn protocol_not_supported_error() {

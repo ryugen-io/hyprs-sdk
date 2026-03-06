@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::ext_workspace::*;
+use hyprs_sdk::protocols::ext_workspace::*;
 
 #[test]
 fn workspace_state_flags() {

@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::output_management::*;
+use hyprs_sdk::protocols::output_management::*;
 
 #[test]
 fn output_mode_refresh_hz() {

@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::virtual_pointer::*;
+use hyprs_sdk::protocols::virtual_pointer::*;
 
 #[test]
 fn button_state_variants() {

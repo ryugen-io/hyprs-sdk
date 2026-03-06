@@ -149,8 +149,8 @@ pub struct WorkspaceInfo {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::ext_workspace::ExtWorkspaceClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::ext_workspace::ExtWorkspaceClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = ExtWorkspaceClient::connect(&wl).unwrap();

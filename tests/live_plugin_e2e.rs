@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use hypr_sdk::error::{HyprError, HyprResult};
-use hypr_sdk::ipc::HyprlandClient;
+use hyprs_sdk::error::{HyprError, HyprResult};
+use hyprs_sdk::ipc::HyprlandClient;
 
 fn plugin_so_path() -> HyprResult<PathBuf> {
     let so = std::env::var("HYPR_SDK_TEST_PLUGIN_SO")
@@ -18,7 +18,7 @@ fn plugin_so_path() -> HyprResult<PathBuf> {
 }
 
 fn plugin_name() -> String {
-    std::env::var("HYPR_SDK_TEST_PLUGIN_NAME").unwrap_or_else(|_| "hypr-sdk-smoke-plugin".into())
+    std::env::var("HYPR_SDK_TEST_PLUGIN_NAME").unwrap_or_else(|_| "hyprs-sdk-smoke-plugin".into())
 }
 
 async fn wait_for_plugin_state(

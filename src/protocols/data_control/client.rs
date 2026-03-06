@@ -19,8 +19,8 @@ use super::{ClipboardOffer, MimeType, Selection};
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::data_control::{DataControlClient, Selection};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::data_control::{DataControlClient, Selection};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = DataControlClient::connect(&wl).unwrap();

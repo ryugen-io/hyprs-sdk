@@ -1,5 +1,5 @@
-use hypr_sdk::types::common::WindowAddress;
-use hypr_sdk::types::layer::{LayerSurface, LayersResponse};
+use hyprs_sdk::types::common::WindowAddress;
+use hyprs_sdk::types::layer::{LayerSurface, LayersResponse};
 
 const SAMPLE_JSON: &str = r#"{
     "DP-1": {

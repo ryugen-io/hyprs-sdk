@@ -1,6 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use hypr_sdk::ipc::events::parse_event;
+use hyprs_sdk::ipc::events::parse_event;
 
 fn clamp(s: &str, max_chars: usize) -> String {
     s.chars().take(max_chars).collect()

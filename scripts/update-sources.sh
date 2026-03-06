@@ -7,6 +7,7 @@ set -euo pipefail
 #   ./scripts/update-sources.sh v0.54.0      # update to specific version
 #   ./scripts/update-sources.sh --check      # just show what would change
 #   ./scripts/update-sources.sh --diff       # show full diff of SDK-relevant files
+#   ./scripts/update-sources.sh --audit      # hard-fail source-sync audit only
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -72,6 +73,200 @@ validate_version() {
         git -C "$TARGET_DIR" tag --list 'v*' | sort -V | tail -10
         exit 1
     fi
+}
+
+# Validate that SDK registries/surfaces match the checked-out Hyprland source.
+extract_source_commands() {
+    perl -ne 'while(/registerCommand\(SHyprCtlCommand\{[^\n]*?"([^"]+)"/g){print "$1\n"}' \
+        "$TARGET_DIR/src/debug/HyprCtl.cpp" \
+        | sort -u
+}
+
+extract_source_props() {
+    perl -ne 'while(/PROP == "([^"]+)"/g){print "$1\n"}' \
+        "$TARGET_DIR/src/managers/KeybindManager.cpp" \
+        | sort -u
+}
+
+extract_sdk_commands() {
+    perl -ne '
+        while(/flagged\(flags,\s*"([^"]+)"/g){print "$1\n";}
+        while(/"([^"]+)"\.into\(\)/g){print "$1\n";}
+        while(/format!\("([^"]+)"/g){
+            my $s = $1;
+            if ($s =~ /^\[\[BATCH\]\]/) {
+                print "[[BATCH]]\n";
+            } else {
+                my ($cmd) = split(/ /, $s, 2);
+                print "$cmd\n";
+            }
+        }
+    ' src/ipc/commands.rs \
+        | awk '/^[a-z][a-z0-9]*$/ || /^\[\[BATCH\]\]$/' \
+        | sort -u
+}
+
+extract_sdk_props() {
+    perl -ne 'while(/=> "([^"]+)"/g){print "$1\n"}' \
+        src/ipc/window_property.rs \
+        | sort -u
+}
+
+extract_source_events() {
+    find "$TARGET_DIR/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+        | xargs -0 perl -0777 -ne '
+            while(/postEvent\s*\(\s*(?:SHyprIPCEvent\s*)?\{\s*(?:\.event\s*=\s*"([^"]+)"|"([^"]+)")/g){
+                my $event = defined($1) ? $1 : $2;
+                print "$event\n";
+            }
+        ' \
+        | awk '/^[a-z][a-z0-9]*$/' \
+        | sort -u
+}
+
+extract_sdk_events() {
+    perl -ne 'while(/=>\s*"([a-z0-9]+)"/g){print "$1\n"}' \
+        src/ipc/events/types.rs \
+        | sort -u
+}
+
+extract_source_dispatchers() {
+    perl -ne 'while(/m_dispatchers\["([^"]+)"\]/g){print "$1\n"}' \
+        "$TARGET_DIR/src/managers/KeybindManager.cpp" \
+        | awk '/^[a-z][a-z0-9]*$/' \
+        | sort -u
+}
+
+extract_sdk_dispatchers() {
+    perl -ne '
+        while(/DispatchCmd::no_args\("([^"]+)"\)/g){print "$1\n";}
+        while(/name:\s*"([^"]+)"/g){print "$1\n";}
+    ' src/dispatch/*.rs \
+        | awk '/^[a-z][a-z0-9]*$/' \
+        | sort -u
+}
+
+extract_source_hooks() {
+    find "$TARGET_DIR/src" -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+        | xargs -0 perl -ne 'while(/EMIT_HOOK_EVENT(?:_CANCELLABLE)?\("([^"]+)"/g){print "$1\n"}' \
+        | awk '/^[A-Za-z][A-Za-z0-9]*$/' \
+        | sort -u
+}
+
+extract_sdk_hooks() {
+    perl -ne 'while(/"([A-Za-z][A-Za-z0-9]*)"\s*=>\s*Some\(Self::/g){print "$1\n"}' \
+        src/plugin/hooks.rs \
+        | sort -u
+}
+
+extract_source_hyprpm_commands() {
+    perl -ne 'while(/command\[0\]\s*==\s*"([a-z0-9-]+)"/g){print "$1\n"}' \
+        "$TARGET_DIR/hyprpm/src/main.cpp" \
+        | sort -u
+}
+
+extract_sdk_hyprpm_commands() {
+    perl -ne '
+        while(/run_raw\(&\["([a-z0-9-]+)"/g){print "$1\n";}
+        while(/vec!\["([a-z0-9-]+)"/g){print "$1\n";}
+    ' src/hyprpm.rs \
+        | sort -u
+}
+
+extract_source_plugin_api_methods() {
+    perl -ne '
+        while(/APICALL\s+([^\n;]*?)\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/g){
+            my $sig = $1;
+            my $name = $2;
+            next if $sig =~ /\[\[deprecated\]\]/;
+            next if $name =~ /^__hyprland_/;
+            print "$name\n";
+        }
+    ' "$TARGET_DIR/src/plugins/PluginAPI.hpp" \
+        | sort -u
+}
+
+extract_sdk_plugin_api_methods() {
+    perl -ne 'while(/HyprlandAPI::([A-Za-z_][A-Za-z0-9_]*)\(/g){print "$1\n"}' \
+        src/plugin/bridge/*.cpp \
+        | sort -u
+}
+
+compare_sets() {
+    local label="$1" expected="$2" actual="$3"
+    local missing extra
+
+    missing=$(comm -23 "$expected" "$actual" || true)
+    extra=$(comm -13 "$expected" "$actual" || true)
+
+    if [ -n "$missing" ] || [ -n "$extra" ]; then
+        echo ""
+        echo "ERROR: $label drift detected."
+        if [ -n "$missing" ]; then
+            echo "  Missing in SDK:"
+            echo "$missing" | sed 's/^/    - /'
+        fi
+        if [ -n "$extra" ]; then
+            echo "  Extra in SDK:"
+            echo "$extra" | sed 's/^/    + /'
+        fi
+        return 1
+    fi
+
+    return 0
+}
+
+run_source_sync_audit() {
+    local target="$1"
+    local tmpdir \
+        source_cmds source_props source_events source_dispatchers source_hooks \
+        source_hyprpm source_plugin_api \
+        sdk_cmds sdk_props sdk_events sdk_dispatchers sdk_hooks \
+        sdk_hyprpm sdk_plugin_api
+
+    tmpdir=$(mktemp -d)
+    source_cmds="$tmpdir/source_cmds.txt"
+    source_props="$tmpdir/source_props.txt"
+    source_events="$tmpdir/source_events.txt"
+    source_dispatchers="$tmpdir/source_dispatchers.txt"
+    source_hooks="$tmpdir/source_hooks.txt"
+    source_hyprpm="$tmpdir/source_hyprpm.txt"
+    source_plugin_api="$tmpdir/source_plugin_api.txt"
+    sdk_cmds="$tmpdir/sdk_cmds.txt"
+    sdk_props="$tmpdir/sdk_props.txt"
+    sdk_events="$tmpdir/sdk_events.txt"
+    sdk_dispatchers="$tmpdir/sdk_dispatchers.txt"
+    sdk_hooks="$tmpdir/sdk_hooks.txt"
+    sdk_hyprpm="$tmpdir/sdk_hyprpm.txt"
+    sdk_plugin_api="$tmpdir/sdk_plugin_api.txt"
+
+    extract_source_commands > "$source_cmds"
+    extract_source_props > "$source_props"
+    extract_source_events > "$source_events"
+    extract_source_dispatchers > "$source_dispatchers"
+    extract_source_hooks > "$source_hooks"
+    extract_source_hyprpm_commands > "$source_hyprpm"
+    extract_source_plugin_api_methods > "$source_plugin_api"
+    extract_sdk_commands > "$sdk_cmds"
+    extract_sdk_props > "$sdk_props"
+    extract_sdk_events > "$sdk_events"
+    extract_sdk_dispatchers > "$sdk_dispatchers"
+    extract_sdk_hooks > "$sdk_hooks"
+    extract_sdk_hyprpm_commands > "$sdk_hyprpm"
+    extract_sdk_plugin_api_methods > "$sdk_plugin_api"
+
+    echo ""
+    echo "Running source-sync audit against $target..."
+    compare_sets "hyprctl command registry" "$source_cmds" "$sdk_cmds"
+    compare_sets "setprop property registry" "$source_props" "$sdk_props"
+    compare_sets "socket2 event registry" "$source_events" "$sdk_events"
+    compare_sets "dispatcher registry" "$source_dispatchers" "$sdk_dispatchers"
+    compare_sets "hook event registry" "$source_hooks" "$sdk_hooks"
+    compare_sets "hyprpm command registry" "$source_hyprpm" "$sdk_hyprpm"
+    compare_sets "plugin API (non-deprecated methods)" "$source_plugin_api" "$sdk_plugin_api"
+    echo "Source-sync audit passed."
+
+    rm -rf "$tmpdir"
 }
 
 # Show stats for SDK-relevant file changes between two versions.
@@ -213,13 +408,17 @@ case "${1:-}" in
     --diff)
         MODE="diff"
         ;;
+    --audit)
+        MODE="audit"
+        ;;
     --help|-h)
-        echo "Usage: $0 [VERSION|--check|--diff]"
+        echo "Usage: $0 [VERSION|--check|--diff|--audit]"
         echo ""
         echo "  (no args)   Update to latest tag"
         echo "  VERSION     Update to specific version (e.g., v0.54.0)"
         echo "  --check     Show what would change without updating"
         echo "  --diff      Show full diff of SDK-relevant files"
+        echo "  --audit     Run source-sync audit and fail on drift"
         exit 0
         ;;
     "")
@@ -245,10 +444,22 @@ validate_version "$TARGET"
 echo "Current: $CURRENT"
 echo "Target:  $TARGET"
 
+# Audit-only mode — enforce source-sync parity and fail hard on drift.
+if [ "$MODE" = "audit" ]; then
+    echo "Checking out $TARGET for audit..."
+    git -C "$TARGET_DIR" checkout --quiet "$TARGET"
+    run_source_sync_audit "$TARGET"
+    echo "Audit finished successfully."
+    exit 0
+fi
+
 # Same version — nothing to do.
 if [ "$CURRENT" = "$TARGET" ]; then
     echo ""
     echo "Already at $TARGET. Nothing to do."
+    echo "Checking out $TARGET for audit..."
+    git -C "$TARGET_DIR" checkout --quiet "$TARGET"
+    run_source_sync_audit "$TARGET"
     exit 0
 fi
 
@@ -277,6 +488,7 @@ git -C "$TARGET_DIR" checkout --quiet "$TARGET"
 echo "$TARGET" > "$VERSION_FILE"
 echo ""
 echo "Updated to $TARGET."
+run_source_sync_audit "$TARGET"
 
 if [ "$CURRENT" != "none" ] && [ "$CURRENT" != "$TARGET" ]; then
     echo ""

@@ -1,6 +1,6 @@
 #![cfg(feature = "wayland")]
 
-use hypr_sdk::protocols::connection::{GlobalInfo, WaylandConnection};
+use hyprs_sdk::protocols::connection::{GlobalInfo, WaylandConnection};
 
 #[test]
 fn connect_fails_without_display() {

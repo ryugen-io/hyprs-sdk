@@ -1,9 +1,9 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use hypr_sdk::ipc::responses::*;
-use hypr_sdk::types::monitor::Monitor;
-use hypr_sdk::types::window::Window;
-use hypr_sdk::types::workspace::Workspace;
+use hyprs_sdk::ipc::responses::*;
+use hyprs_sdk::types::monitor::Monitor;
+use hyprs_sdk::types::window::Window;
+use hyprs_sdk::types::workspace::Workspace;
 
 fuzz_target!(|data: &[u8]| {
     // All deserializers must never panic on any input.

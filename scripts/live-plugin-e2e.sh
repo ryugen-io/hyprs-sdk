@@ -12,7 +12,7 @@ if [[ ! -S "${runtime_base}/.socket.sock" ]]; then
   exit 1
 fi
 
-plugin_name="hypr-sdk-smoke-plugin"
+plugin_name="hyprs-sdk-smoke-plugin"
 plugin_src="tests/fixtures/plugin_smoke_cpp.cpp"
 
 if ! command -v g++ >/dev/null 2>&1; then
@@ -33,7 +33,7 @@ fi
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
-plugin_so="${tmp_dir}/hypr-sdk-smoke-plugin.so"
+plugin_so="${tmp_dir}/hyprs-sdk-smoke-plugin.so"
 
 g++ -std=c++2b -shared -fPIC ${hyprland_cflags} "${plugin_src}" -o "${plugin_so}"
 

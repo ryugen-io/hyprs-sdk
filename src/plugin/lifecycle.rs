@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use hypr_sdk::plugin::*;
+//! use hyprs_sdk::plugin::*;
 //!
 //! fn my_init(handle: PluginHandle) -> Result<PluginDescription, String> {
 //!     // Register config values, hooks, dispatchers...

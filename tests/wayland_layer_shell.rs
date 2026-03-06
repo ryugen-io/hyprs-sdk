@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::layer_shell::*;
+use hyprs_sdk::protocols::layer_shell::*;
 
 #[test]
 fn layer_ordering() {

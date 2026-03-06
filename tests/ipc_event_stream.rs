@@ -1,10 +1,10 @@
-use hypr_sdk::ipc::socket;
-use hypr_sdk::ipc::{Event, EventStream};
+use hyprs_sdk::ipc::socket;
+use hyprs_sdk::ipc::{Event, EventStream};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixListener;
 
 fn unique_sock_path() -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("hypr-sdk-test-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("hyprs-sdk-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("create test dir");
     dir.join(format!("{}.sock", uuid()))
 }

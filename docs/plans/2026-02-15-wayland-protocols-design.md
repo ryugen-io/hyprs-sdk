@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add client-side Wayland protocol bindings to hypr-sdk so Rust programs can interact with Hyprland beyond IPC: capture screenshots, read/write clipboard, create layer-shell surfaces, register global shortcuts, build lock screens, send synthetic input, and more.
+Add client-side Wayland protocol bindings to hyprs-sdk so Rust programs can interact with Hyprland beyond IPC: capture screenshots, read/write clipboard, create layer-shell surfaces, register global shortcuts, build lock screens, send synthetic input, and more.
 
 ## Architecture
 

@@ -130,8 +130,8 @@ pub struct GammaControlEntry {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::gamma_control::{GammaControlClient, GammaTable};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::gamma_control::{GammaControlClient, GammaTable};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = GammaControlClient::connect(&wl).unwrap();
@@ -316,7 +316,7 @@ fn tempfile() -> std::io::Result<std::fs::File> {
     // Prefer $XDG_RUNTIME_DIR (tmpfs on most systems) for speed; fall back to /tmp.
     let path = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let path =
-        std::path::PathBuf::from(path).join(format!("hypr-sdk-gamma-{}", std::process::id()));
+        std::path::PathBuf::from(path).join(format!("hyprs-sdk-gamma-{}", std::process::id()));
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)

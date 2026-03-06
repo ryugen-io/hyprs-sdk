@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::pointer_warp::*;
+use hyprs_sdk::protocols::pointer_warp::*;
 
 #[test]
 fn warp_target_construction() {

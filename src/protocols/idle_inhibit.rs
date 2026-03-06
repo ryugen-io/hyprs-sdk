@@ -26,8 +26,8 @@ use crate::protocols::connection::WaylandConnection;
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::idle_inhibit::IdleInhibitClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::idle_inhibit::IdleInhibitClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = IdleInhibitClient::connect(&wl).unwrap();

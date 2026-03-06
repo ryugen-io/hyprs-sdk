@@ -7,6 +7,7 @@ pub const HYPRLAND_TARGET_VERSION: &str = "0.53.0";
 pub mod config;
 pub mod dispatch;
 pub mod error;
+pub mod hyprpm;
 pub mod ipc;
 pub mod plugin;
 pub mod protocols;

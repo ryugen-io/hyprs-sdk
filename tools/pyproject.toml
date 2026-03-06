@@ -1,7 +1,7 @@
 [project]
 name = "hypr-tui"
 version = "0.1.0"
-description = "TUI dashboard for hypr-sdk test, benchmark, and fuzz results"
+description = "TUI dashboard for hyprs-sdk test, benchmark, and fuzz results"
 requires-python = ">=3.13"
 dependencies = [
     "textual>=8.0.0",

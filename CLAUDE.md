@@ -1,4 +1,4 @@
-# hypr-sdk -- Hyprland Rust SDK / Gateway
+# hyprs-sdk -- Hyprland Rust SDK / Gateway
 
 Rust SDK wrapping the full Hyprland API: IPC, Wayland protocols, plugin FFI, config, desktop types, hooks. Reference source: `~/code/git/foreign/Hyprland/` (read-only, v0.53.0). Always verify against the C++ source -- do not guess.
 

@@ -1,4 +1,4 @@
-use hypr_sdk::config::*;
+use hyprs_sdk::config::*;
 
 #[test]
 fn window_rule_construction() {

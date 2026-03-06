@@ -1,5 +1,5 @@
-use hypr_sdk::config::*;
-use hypr_sdk::types::common::WorkspaceId;
+use hyprs_sdk::config::*;
+use hyprs_sdk::types::common::WorkspaceId;
 
 #[test]
 fn workspace_rule_defaults() {

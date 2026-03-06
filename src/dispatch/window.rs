@@ -115,10 +115,10 @@ pub fn center_window() -> DispatchCmd {
 
 /// Set a window property.
 #[must_use]
-pub fn set_prop(regex: &str, property: &str, value: &str) -> DispatchCmd {
+pub fn set_prop<P: AsRef<str>>(regex: &str, property: P, value: &str) -> DispatchCmd {
     DispatchCmd {
         name: "setprop",
-        args: format!("{regex} {property} {value}"),
+        args: format!("{} {} {}", regex, property.as_ref(), value),
     }
 }
 

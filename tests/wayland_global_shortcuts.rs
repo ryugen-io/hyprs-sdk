@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::global_shortcuts::*;
+use hyprs_sdk::protocols::global_shortcuts::*;
 
 #[test]
 fn shortcut_info_construction() {

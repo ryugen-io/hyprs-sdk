@@ -1,4 +1,4 @@
-use hypr_sdk::plugin::*;
+use hyprs_sdk::plugin::*;
 
 #[test]
 fn layout_handle_null() {

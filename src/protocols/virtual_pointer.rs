@@ -94,8 +94,8 @@ pub struct ButtonEvent {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::virtual_pointer::{VirtualPointerClient, ButtonState};
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::virtual_pointer::{VirtualPointerClient, ButtonState};
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = VirtualPointerClient::connect(&wl).unwrap();

@@ -1,5 +1,5 @@
-use hypr_sdk::types::common::{MonitorId, WindowAddress, WorkspaceId, WorkspaceRef};
-use hypr_sdk::types::monitor::Monitor;
+use hyprs_sdk::types::common::{MonitorId, WindowAddress, WorkspaceId, WorkspaceRef};
+use hyprs_sdk::types::monitor::Monitor;
 
 const SAMPLE_JSON: &str = r#"{
     "id": 0,

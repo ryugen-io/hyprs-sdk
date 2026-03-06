@@ -44,8 +44,8 @@ pub struct ExtToplevelInfo {
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::ext_foreign_toplevel_list::ExtForeignToplevelListClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::ext_foreign_toplevel_list::ExtForeignToplevelListClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let mut client = ExtForeignToplevelListClient::connect(&wl).unwrap();

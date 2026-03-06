@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::hyprland_surface::*;
+use hyprs_sdk::protocols::hyprland_surface::*;
 
 #[test]
 fn surface_handle_debug_format() {

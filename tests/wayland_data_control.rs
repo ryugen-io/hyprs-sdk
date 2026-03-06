@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::data_control::*;
+use hyprs_sdk::protocols::data_control::*;
 
 #[test]
 fn mime_type_is_text() {

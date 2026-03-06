@@ -1,4 +1,4 @@
-use hypr_sdk::error::HyprError;
+use hyprs_sdk::error::HyprError;
 
 #[test]
 fn error_display_io() {

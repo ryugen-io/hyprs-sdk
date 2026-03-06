@@ -12,7 +12,7 @@ use std::str::FromStr;
 /// # Examples
 ///
 /// ```
-/// use hypr_sdk::types::common::WindowAddress;
+/// use hyprs_sdk::types::common::WindowAddress;
 ///
 /// let addr: WindowAddress = "0x55a3f2c0".parse().unwrap();
 /// assert_eq!(addr.to_string(), "0x55a3f2c0");

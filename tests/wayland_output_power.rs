@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::output_power::PowerMode;
+use hyprs_sdk::protocols::output_power::PowerMode;
 
 #[test]
 fn power_mode_variants() {

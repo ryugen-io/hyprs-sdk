@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::virtual_keyboard::*;
+use hyprs_sdk::protocols::virtual_keyboard::*;
 
 #[test]
 fn key_state_variants() {

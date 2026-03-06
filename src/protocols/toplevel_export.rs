@@ -7,8 +7,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::toplevel_export::ToplevelExportClient;
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::toplevel_export::ToplevelExportClient;
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = ToplevelExportClient::connect(&wl).unwrap();
@@ -256,7 +256,7 @@ impl fmt::Debug for ToplevelExportClient {
 
 fn create_shm_file(size: usize) -> std::io::Result<std::fs::File> {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let path = format!("{dir}/hypr-sdk-toplevel-export-XXXXXX");
+    let path = format!("{dir}/hyprs-sdk-toplevel-export-XXXXXX");
     let file = std::fs::File::options()
         .read(true)
         .write(true)

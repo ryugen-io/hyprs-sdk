@@ -42,7 +42,7 @@ pub mod types;
 pub use hooks::HookEvent;
 pub use types::*;
 
-// Flatten the public API so users can `use hypr_sdk::plugin::*` without navigating submodule paths.
+// Flatten the public API so users can `use hyprs_sdk::plugin::*` without navigating submodule paths.
 pub use api::{
     Color, FunctionHookHandle, HookCallback, HookCallbackGuard, HyprCtlCommandGuard,
     HyprCtlCommandHandler, add_notification, add_notification_v2, reload_config,

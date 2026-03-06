@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::gamma_control;
+use hyprs_sdk::protocols::gamma_control;
 
 #[test]
 fn gamma_table_identity() {

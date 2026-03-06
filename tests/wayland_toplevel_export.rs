@@ -1,5 +1,5 @@
 #![cfg(feature = "wayland")]
-use hypr_sdk::protocols::toplevel_export::*;
+use hyprs_sdk::protocols::toplevel_export::*;
 
 #[test]
 fn frame_format_buffer_size() {

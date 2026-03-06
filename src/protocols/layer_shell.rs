@@ -10,8 +10,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::layer_shell::{
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::layer_shell::{
 //!     LayerShellClient, LayerSurfaceConfig, ShellLayer, Anchor,
 //! };
 //!

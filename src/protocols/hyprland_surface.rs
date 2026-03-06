@@ -8,8 +8,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::hyprland_surface::HyprlandSurfaceClient;
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::hyprland_surface::HyprlandSurfaceClient;
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = HyprlandSurfaceClient::connect(&wl).unwrap();

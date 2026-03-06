@@ -19,8 +19,8 @@ use super::types::*;
 /// # Example
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
-/// use hypr_sdk::protocols::output_management::OutputManagementClient;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::output_management::OutputManagementClient;
 ///
 /// let wl = WaylandConnection::connect().unwrap();
 /// let client = OutputManagementClient::connect(&wl).unwrap();

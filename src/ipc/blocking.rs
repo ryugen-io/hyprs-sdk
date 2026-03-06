@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use crate::dispatch::DispatchCmd;
 use crate::error::{HyprError, HyprResult};
 use crate::ipc::commands::{self, Flags};
+use crate::ipc::common::{normalize_window_selector, parse_json_or_command_error};
 use crate::ipc::instance::Instance;
 use crate::ipc::responses;
 use crate::ipc::socket;
@@ -38,6 +39,12 @@ impl BlockingClient {
     pub fn current() -> HyprResult<Self> {
         let instance = crate::ipc::instance::current_instance()?;
         Ok(Self::from_instance(&instance))
+    }
+
+    /// Path to Socket1 (request/response).
+    #[must_use]
+    pub fn socket1_path(&self) -> &std::path::Path {
+        &self.socket1
     }
 
     // Lowest-level blocking API: exists so callers without a tokio runtime (scripts, CLI tools,
@@ -175,8 +182,17 @@ impl BlockingClient {
     }
 
     /// Get a window property.
-    pub fn get_prop(&self, window: &str, property: &str, flags: Flags) -> HyprResult<String> {
-        self.request(&commands::get_prop(window, property, flags))
+    ///
+    /// `window` accepts either a selector (`address:0x...`) or a raw
+    /// window pointer (`0x...`), which is normalized automatically.
+    pub fn get_prop<P: AsRef<str>>(
+        &self,
+        window_address: &str,
+        property: P,
+        flags: Flags,
+    ) -> HyprResult<String> {
+        let selector = normalize_window_selector(window_address);
+        self.request(&commands::get_prop(&selector, property.as_ref(), flags))
     }
 
     /// Get a configuration option value.
@@ -185,8 +201,9 @@ impl BlockingClient {
     }
 
     /// Get window decorations.
-    pub fn decorations(&self, window: &str, flags: Flags) -> HyprResult<String> {
-        self.request(&commands::decorations(window, flags))
+    pub fn decorations(&self, window_address: &str, flags: Flags) -> HyprResult<String> {
+        let selector = normalize_window_selector(window_address);
+        self.request(&commands::decorations(&selector, flags))
     }
 
     // Typed JSON queries with blocking I/O. These mirror the async API so callers can switch
@@ -299,7 +316,11 @@ impl BlockingClient {
         &self,
         window_address: &str,
     ) -> HyprResult<Vec<responses::DecorationInfo>> {
-        let raw = self.request(&commands::decorations(window_address, Flags::json()))?;
+        let selector = normalize_window_selector(window_address);
+        let raw = self.request(&commands::decorations(&selector, Flags::json()))?;
+        if raw.trim() == "none" {
+            return Ok(Vec::new());
+        }
         serde_json::from_str(&raw).map_err(HyprError::Json)
     }
 
@@ -316,13 +337,18 @@ impl BlockingClient {
     }
 
     /// Query a window property as a JSON value.
-    pub fn get_prop_value(
+    pub fn get_prop_value<P: AsRef<str>>(
         &self,
         window_address: &str,
-        property: &str,
+        property: P,
     ) -> HyprResult<serde_json::Value> {
-        let raw = self.request(&commands::get_prop(window_address, property, Flags::json()))?;
-        serde_json::from_str(&raw).map_err(HyprError::Json)
+        let selector = normalize_window_selector(window_address);
+        let raw = self.request(&commands::get_prop(
+            &selector,
+            property.as_ref(),
+            Flags::json(),
+        ))?;
+        parse_json_or_command_error(raw)
     }
 
     // Raw flagged queries for callers who need custom flag combinations with blocking I/O.

@@ -7,8 +7,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use hypr_sdk::protocols::connection::WaylandConnection;
-//! use hypr_sdk::protocols::global_shortcuts::GlobalShortcutsClient;
+//! use hyprs_sdk::protocols::connection::WaylandConnection;
+//! use hyprs_sdk::protocols::global_shortcuts::GlobalShortcutsClient;
 //!
 //! let wl = WaylandConnection::connect().unwrap();
 //! let mut client = GlobalShortcutsClient::connect(&wl).unwrap();

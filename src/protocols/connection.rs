@@ -54,7 +54,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for RegistryState {
 /// # Examples
 ///
 /// ```no_run
-/// use hypr_sdk::protocols::connection::WaylandConnection;
+/// use hyprs_sdk::protocols::connection::WaylandConnection;
 ///
 /// let wl = WaylandConnection::connect().expect("failed to connect");
 /// for global in wl.globals() {
